@@ -1,3 +1,13 @@
+---
+name: orchestrator
+description: "흐름 제어 및 팀 조율. 멀티스텝 오케스트레이션, 복잡도 분류, 에이전트팀 구성, Task DAG 생성, 모델 배정에 사용. 코드 작성/OS 조작/테스트/패키지 설치에는 사용 금지."
+model: opus
+tools: Read, Grep, Glob, Agent
+disallowedTools: Edit, Write, Bash
+permissionMode: plan
+maxTurns: 50
+---
+
 # Orchestrator Agent
 
 > Model: Sonnet 4.6 (Phase 0) → Opus 4.6 (Phase 1+, 복잡한 판단 시)

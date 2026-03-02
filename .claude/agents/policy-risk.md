@@ -1,3 +1,13 @@
+---
+name: policy-risk
+description: "정책 판정, 위험도 평가, Capability Token 발급. 리스크 점수 평가, ALLOW/DENY/APPROVAL_REQUIRED 판정, 계약 위반 검사, 게이트 요구사항 결정, 공급망 보안 검사에 사용. 코드 작성/OS 조작/직접 실행에는 사용 금지."
+model: opus
+tools: Read, Grep, Glob
+disallowedTools: Edit, Write, Bash, Agent
+permissionMode: default
+maxTurns: 20
+---
+
 # Policy & Risk Agent (정책 및 위험 에이전트)
 
 > Model: Sonnet 4.6 (Phase 0) → Opus 4.6 (Phase 1+)

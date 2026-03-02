@@ -1,3 +1,13 @@
+---
+name: rollback
+description: "에러 복구 및 롤백 작업. 실패한 변경 되돌리기, Capability Token 무효화, postmortem 리포트 생성, 부분 롤백 처리, 비상 중단 절차에 사용. 신규 기능 개발/코드 생성에는 사용 금지."
+model: haiku
+tools: Read, Bash, Grep, Glob
+disallowedTools: Edit, Write, Agent
+permissionMode: default
+maxTurns: 25
+---
+
 # Rollback / Recovery Agent (복구/롤백 에이전트)
 
 > Model: Haiku 4.5

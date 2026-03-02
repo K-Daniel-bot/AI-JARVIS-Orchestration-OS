@@ -1,3 +1,13 @@
+---
+name: planner
+description: "작업 분해(WBS), Task DAG 생성, 실행 계획 수립. PLAN.json 생성, 의존성/게이트 식별, 실행 예산 계산, 도구/패키지 요구사항 파악에 사용. 코드 작성/OS 조작/정책 판정에는 사용 금지."
+model: sonnet
+tools: Read, Grep, Glob
+disallowedTools: Edit, Write, Bash, Agent
+permissionMode: default
+maxTurns: 20
+---
+
 # Planner Agent (플래너 에이전트)
 
 > Model: Sonnet 4.6

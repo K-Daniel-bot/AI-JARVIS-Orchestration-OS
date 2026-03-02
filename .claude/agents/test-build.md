@@ -1,3 +1,13 @@
+---
+name: test-build
+description: "테스트 실행 및 빌드 검증. TypeScript 빌드 실행, vitest 테스트 실행, 실패 원인 분석, 커버리지 리포트 생성, Planner에 수정 제안 피드백에 사용. 코드 수정/OS 조작/패키지 설치에는 사용 금지."
+model: haiku
+tools: Read, Bash, Grep, Glob
+disallowedTools: Edit, Write, Agent
+permissionMode: default
+maxTurns: 30
+---
+
 # Test & Build Agent (테스트 및 빌드 에이전트)
 
 > Model: Haiku 4.5

@@ -1,18 +1,54 @@
 {
+  "env": {
+    "JARVIS_OS_ENV": "development",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
   "permissions": {
     "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(pnpm *)",
+      "Bash(turbo *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(node --version)",
+      "Bash(pnpm --version)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch*)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
       "mcp__claude_ai_excalidraw-mcp__read_me",
-      "mcp__claude_ai_excalidraw-mcp__create_view",
-      "Bash(py --version)",
-      "Bash(python .claude/fix_headers.py)",
-      "Bash(python -c \":*)",
-      "Bash(python .claude/fix_headers2.py)",
-      "Bash(python .claude/fix_headers3.py)",
-      "Read(//c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS/**)"
+      "mcp__claude_ai_excalidraw-mcp__create_view"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(powershell *-ExecutionPolicy*)",
+      "Bash(regedit*)",
+      "Bash(net user*)",
+      "Bash(netsh*)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)",
+      "Bash(npm install -g *)",
+      "Bash(pnpm install -g *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\ejdnj\\.claude\\projects\\c--Users-ejdnj-OneDrive-Desktop-GitHub-AI-JARVIS-Orchestration-OS",
-      "c:\\Users\\ejdnj\\OneDrive\\Desktop\\GitHub\\AI-JARVIS-Orchestration-OS\\.claude"
+      "c:\\Users\\ejdnj\\OneDrive\\Desktop\\GitHub\\AI-JARVIS-Orchestration-OS\\.claude",
+      "c:\\Users\\ejdnj\\OneDrive\\Desktop\\GitHub\\AI-JARVIS-Orchestration-OS\\.claude\\skills"
     ]
   }
 }

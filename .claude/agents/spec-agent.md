@@ -1,3 +1,13 @@
+---
+name: spec-agent
+description: "의도 분석 및 요구사항 명세. 사용자 요청 분석, SPEC.md 생성, 모호성 식별, 의도 유형 분류, 외부 리소스 요구 판별에 사용. 코드 생성/정책 판정/OS 조작에는 사용 금지."
+model: haiku
+tools: Read, Grep, Glob
+disallowedTools: Edit, Write, Bash, Agent
+permissionMode: default
+maxTurns: 15
+---
+
 # Spec Agent (의도 및 스펙 에이전트)
 
 > Model: Haiku 4.5

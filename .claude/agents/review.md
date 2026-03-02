@@ -1,3 +1,13 @@
+---
+name: review
+description: "코드 리뷰, 보안 감사, 품질 평가. ChangeSet 리뷰, 보안 체크리스트 검증, 코드 품질 메트릭, 아키텍처 일관성, 성능 안티패턴 탐지에 사용. 코드 수정/OS 조작/테스트 실행에는 사용 금지."
+model: sonnet
+tools: Read, Grep, Glob
+disallowedTools: Edit, Write, Bash, Agent
+permissionMode: default
+maxTurns: 25
+---
+
 # Review Agent (리뷰 에이전트)
 
 > Model: Sonnet 4.6

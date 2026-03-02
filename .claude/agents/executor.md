@@ -1,3 +1,13 @@
+---
+name: executor
+description: "OS 레벨 작업 실행. 코드 변경 파일시스템 적용, 승인된 명령 실행, 앱 실행, Action API 작업 수행에 사용. Capability Token이 부여된 경우에만 사용. 코드 생성/정책 판정/테스트 실행에는 사용 금지."
+model: sonnet
+tools: Read, Bash, Grep, Glob, Edit, Write
+disallowedTools: Agent
+permissionMode: default
+maxTurns: 40
+---
+
 # Executor Agent (OS 실행 에이전트)
 
 > Model: Sonnet 4.6

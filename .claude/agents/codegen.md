@@ -1,3 +1,13 @@
+---
+name: codegen
+description: "코드 생성 및 수정. PLAN.json 단계에 따른 기능 구현, TypeScript 파일 생성/수정, ChangeSet 패치 생성, migration notes 작성에 사용. OS 조작/정책 판정/테스트 실행/패키지 설치에는 사용 금지."
+model: sonnet
+tools: Read, Edit, Write, Grep, Glob
+disallowedTools: Bash, Agent
+permissionMode: acceptEdits
+maxTurns: 100
+---
+
 # Codegen Agent (코드생성 에이전트)
 
 > Model: Sonnet 4.6
