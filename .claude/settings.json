@@ -1,4 +1,8 @@
 {
+  "statusLine": {
+    "type": "command",
+    "command": "bash /mnt/c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS/.claude/statusline-command.sh"
+  },
   "env": {
     "JARVIS_OS_ENV": "development",
     "NODE_OPTIONS": "--max-old-space-size=4096"

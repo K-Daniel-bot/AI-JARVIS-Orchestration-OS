@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/home/ejdnjs0930/.claude/projects/-mnt-c-Users-ejdnj-OneDrive-Desktop-GitHub-AI-JARVIS-Orchestration-OS/memory\"}",
+  "error": "File does not exist. Note: your current working directory is /mnt/c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS.",
+  "timestamp": "2026-03-02T09:52:58.036Z",
+  "retry_count": 1
+}

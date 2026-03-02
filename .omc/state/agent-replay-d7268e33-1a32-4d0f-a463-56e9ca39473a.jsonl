@@ -1,0 +1,4 @@
+{"t":0,"agent":"a543cef","agent_type":"statusline-setup","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a543cef","agent_type":"statusline-setup","event":"agent_stop","success":true}
+{"t":0,"agent":"ae1e77a","agent_type":"statusline-setup","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"ae1e77a","agent_type":"statusline-setup","event":"agent_stop","success":true}

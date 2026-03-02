@@ -62,6 +62,22 @@ AI JARVIS Orchestration Agent OS는 컴퓨터(Windows/macOS)를 직접 조작하
 | `design/ui-ux.md`             | 3패널 레이아웃, 게이트 와이어프레임, 디자인 토큰, 접근성, 원격 조작 애니메이션 |
 | `design/security-deep.md`     | 자격증명 금고, 웹 보안, 공급망 보안, 프롬프트 주입 방어, DLP                   |
 | `design/architecture-deep.md` | 에이전트 통신 프로토콜, 상태 감시, 성능 저하 전략, 체크포인트                  |
+| `design/test-scenarios.md`    | Phase 0 통합 테스트 시나리오 5종 (Happy Path, DENY, Gate, 롤백, 비상 중단)     |
+| `design/dependencies.md`      | npm 패키지 전체 목록 (버전 고정, 라이선스, 선택 이유, 대안 비교)               |
+
+### 에이전트 System Prompt 템플릿
+
+| 파일                          | 에이전트     | 모델       |
+| ----------------------------- | ------------ | ---------- |
+| `prompts/orchestrator.md`   | Orchestrator | Opus 4.6   |
+| `prompts/spec-agent.md`     | Spec Agent   | Haiku 4.5  |
+| `prompts/policy-risk.md`    | Policy/Risk  | Opus 4.6   |
+| `prompts/planner.md`        | Planner      | Sonnet 4.6 |
+| `prompts/codegen.md`        | Codegen      | Sonnet 4.6 |
+| `prompts/review.md`         | Review       | Sonnet 4.6 |
+| `prompts/test-build.md`     | Test/Build   | Haiku 4.5  |
+| `prompts/executor.md`       | Executor     | Sonnet 4.6 |
+| `prompts/rollback.md`       | Rollback     | Haiku 4.5  |
 
 ### 보완/확장 문서
 

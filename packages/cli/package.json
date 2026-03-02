@@ -1,0 +1,38 @@
+{
+  "name": "@jarvis/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "jarvis": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/core": "workspace:*",
+    "@jarvis/agents": "workspace:*",
+    "@jarvis/policy-engine": "workspace:*",
+    "@jarvis/audit": "workspace:*",
+    "@jarvis/executor": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "2.1.8",
+    "vitest": "2.1.8",
+    "tsx": "4.19.2"
+  }
+}

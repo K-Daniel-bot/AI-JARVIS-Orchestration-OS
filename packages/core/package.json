@@ -1,0 +1,29 @@
+{
+  "name": "@jarvis/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@jarvis/shared": "workspace:*",
+    "xstate": "5.19.2"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "2.1.8",
+    "vitest": "2.1.8"
+  }
+}

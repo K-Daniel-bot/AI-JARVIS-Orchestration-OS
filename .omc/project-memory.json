@@ -1,0 +1,146 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1772440461406,
+  "projectRoot": "/mnt/c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "assets"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 1,
+      "lastAccessed": 1772440461374,
+      "keyFiles": [
+        "banner.svg"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": ".claude/skills",
+      "accessCount": 7,
+      "lastAccessed": 1772441629068,
+      "type": "directory"
+    },
+    {
+      "path": ".claude/skills/code-review/skill.md",
+      "accessCount": 3,
+      "lastAccessed": 1772441619505,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/bug-fix/skill.md",
+      "accessCount": 3,
+      "lastAccessed": 1772441619771,
+      "type": "file"
+    },
+    {
+      "path": ".claude/settings.json",
+      "accessCount": 3,
+      "lastAccessed": 1772443845730,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/refactoring/skill.md",
+      "accessCount": 2,
+      "lastAccessed": 1772441604516,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/test-analysis/skill.md",
+      "accessCount": 2,
+      "lastAccessed": 1772441609652,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/spec-analysis/skill.md",
+      "accessCount": 2,
+      "lastAccessed": 1772441613065,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1772441615129,
+      "type": "directory"
+    },
+    {
+      "path": ".claude/statusline-command.sh",
+      "accessCount": 2,
+      "lastAccessed": 1772443845893,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/security-check/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441606747,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/bug-fix-review/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441607979,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/policy-check/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441613626,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/deploy-gate/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441614432,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/git-commit/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441614870,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/git-pr/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441615717,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/research-analysis/skill.md",
+      "accessCount": 1,
+      "lastAccessed": 1772441616005,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
