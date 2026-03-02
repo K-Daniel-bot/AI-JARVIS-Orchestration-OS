@@ -106,9 +106,10 @@ AI JARVIS Orchestration Agent OS는 컴퓨터(Windows/macOS)를 직접 조작하
 
 ```
 IDLE → SPEC_ANALYSIS → POLICY_CHECK → PLANNING
-  → [Gate L1: 계획 승인]
+  → [Gate L1: 계획/범위 승인]
+  → [Gate L1A: 도구/패키지/네트워크 승인] (pkg.install 포함 시)
   → CODE_GENERATION → CODE_REVIEW
-  → [Gate L2: 변경 승인]
+  → [Gate L2: 변경 적용 승인]
   → TESTING → DEPLOYMENT
   → [Gate L3: 실행/배포 승인]
   → COMPLETED / ROLLED_BACK

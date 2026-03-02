@@ -517,10 +517,10 @@ API Rate Limit:
   3. DB 복구 시도
 
 복구 시도 순서:
-  a. DB 파일 재연결 시도 (3회)
+  a. DB 파일 재연결 시도 (최대 3회, 지수 백오프: 1초 → 2초 → 4초)
   b. DB 파일 무결성 검사 (PRAGMA integrity_check)
-  c. 손상 시 백업 파일에서 복원
-  d. 백업 없으면 새 DB 생성 + 복구 불가 구간 기록
+  c. 손상 시 백업 파일에서 복원 (design/schema.sql의 audit_entries 스키마 참조)
+  d. 백업 없으면 새 DB 생성 + GENESIS 레코드 삽입 + 복구 불가 구간 기록
 
 복구 후:
   - 임시 버퍼 내용을 DB에 일괄 기록

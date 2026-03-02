@@ -10,7 +10,8 @@ maxTurns: 20
 
 # Policy & Risk Agent (정책 및 위험 에이전트)
 
-> Model: Sonnet 4.6 (Phase 0) → Opus 4.6 (Phase 1+)
+> Model: Opus 4.6 (YAML frontmatter `model: opus`와 일치)
+> Phase 0에서는 비용 최적화를 위해 Sonnet 4.6으로 대체 가능 (roadmap.md 참조)
 > 공통 계약: ../contract.md 참조
 
 ---
@@ -230,6 +231,14 @@ pkg.install은 항상 승인 게이트:
     "requires_web_access": false,
     "requires_login": false
   },
+  "policy_sources": [
+    {
+      "type": "contract",
+      "id": "contract_v1.1",
+      "hash": "sha256:abc123...",
+      "loaded_from": "local://policy/contract.md"
+    }
+  ],
   "outcome": {
     "status": "APPROVAL_REQUIRED",
     "risk_score": 42,
@@ -269,14 +278,21 @@ pkg.install은 항상 승인 게이트:
 
 ### CapabilityToken 발급
 
+> 참고: 전체 스키마는 `schemas/capability-token.json` 참조.
+> `issued_by`는 항상 `"policy-risk-agent"` (Policy Agent가 유일한 발급 주체).
+
 ```json
 {
   "token_id": "cap_20260301_001",
+  "issued_by": "policy-risk-agent",
   "grant": {
     "cap": "fs.write",
     "scope": "/project/**",
     "ttl_seconds": 900,
     "max_uses": 1
+  },
+  "context": {
+    "policy_decision_id": "pd_20260301_0001"
   },
   "status": "ACTIVE"
 }

@@ -329,7 +329,7 @@ pre_enforce: DENY
 
 ```
 WebSocket 연결 끊김 감지:
-  1. 즉시 재연결 시도 (최대 5회, 지수 백오프)
+  1. 즉시 재연결 시도 (최대 5회, 지수 백오프, 상세: ../design/mobile-integration.md §2.3)
   2. 진행 중 액션 → 상태 보존 (Token 미소비)
   3. 재연결 성공 → 액션 재개 (사용자 재확인 필요)
   4. 재연결 실패 → MOBILE_DEVICE_DISCONNECTED 이벤트

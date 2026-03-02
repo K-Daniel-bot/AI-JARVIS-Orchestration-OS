@@ -10,7 +10,8 @@ maxTurns: 50
 
 # Orchestrator Agent
 
-> Model: Sonnet 4.6 (Phase 0) → Opus 4.6 (Phase 1+, 복잡한 판단 시)
+> Model: Opus 4.6 (YAML frontmatter `model: opus`와 일치)
+> Phase 0에서는 비용 최적화를 위해 Sonnet 4.6으로 대체 가능 (roadmap.md 참조)
 > 공통 계약: ../contract.md 참조
 
 ---
@@ -114,18 +115,21 @@ flowchart TD
 
 에이전트마다 모델을 다르게 배정하여 토큰 최적화:
 
+> **참고**: YAML frontmatter의 `model` 필드는 Phase 1+ 기준 (Production 권장 모델).
+> Phase 0에서는 비용 절감을 위해 Opus → Sonnet 대체 가능 (roadmap.md 참조).
+
 ```
-| Agent        | Phase 0 Model  | Phase 1+ Model |
-|-------------|----------------|----------------|
-| Orchestrator | Sonnet 4.6     | Opus 4.6 (선택)|
-| Spec         | Haiku 4.5      | Haiku 4.5      |
-| Policy/Risk  | Sonnet 4.6     | Opus 4.6       |
-| Planner      | Sonnet 4.6     | Sonnet 4.6     |
-| Codegen      | Sonnet 4.6     | Sonnet 4.6     |
-| Review       | Sonnet 4.6     | Sonnet 4.6     |
-| Test/Build   | Haiku 4.5      | Haiku 4.5      |
-| Executor     | Sonnet 4.6     | Sonnet 4.6     |
-| Rollback     | Haiku 4.5      | Haiku 4.5      |
+| Agent        | YAML model | Phase 0 Model  | Phase 1+ Model |
+|-------------|------------|----------------|----------------|
+| Orchestrator | opus       | Sonnet 4.6     | Opus 4.6       |
+| Spec         | haiku      | Haiku 4.5      | Haiku 4.5      |
+| Policy/Risk  | opus       | Sonnet 4.6     | Opus 4.6       |
+| Planner      | sonnet     | Sonnet 4.6     | Sonnet 4.6     |
+| Codegen      | sonnet     | Sonnet 4.6     | Sonnet 4.6     |
+| Review       | sonnet     | Sonnet 4.6     | Sonnet 4.6     |
+| Test/Build   | haiku      | Haiku 4.5      | Haiku 4.5      |
+| Executor     | sonnet     | Sonnet 4.6     | Sonnet 4.6     |
+| Rollback     | haiku      | Haiku 4.5      | Haiku 4.5      |
 ```
 
 ### 3.4 에이전트 건강 감시

@@ -41,7 +41,14 @@ type Result<T, E = JarvisError> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 
-/** 에이전트 식별자 */
+/**
+ * 에이전트 식별자 — kebab-case (lowercase-with-hyphens)
+ *
+ * 참고: message-protocol.md와의 통일
+ * - 로그 기록 시 이 형식 사용
+ * - 메시지 버스에서도 kebab-case 유지
+ * - 파일명, environment 변수도 kebab-case 준수
+ */
 type AgentId =
   | 'orchestrator'
   | 'spec-agent'

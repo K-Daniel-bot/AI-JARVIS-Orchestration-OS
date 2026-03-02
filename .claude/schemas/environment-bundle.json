@@ -1,0 +1,645 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jarvis-os.local/schemas/environment-bundle.v1.json",
+  "title": "EnvironmentBundle",
+  "description": "/.ai-run/ 디렉토리 하위 파일들의 스키마 묶음 — 각 Run의 실행 컨텍스트를 파일 시스템에 영속화",
+  "version": "1.0.0",
+  "last_updated": "2026-03-02",
+
+  "_directory_structure": {
+    "설명": ".ai-run/ 디렉토리는 각 Run마다 생성되며, 에이전트 간 공유 상태를 파일로 관리",
+    "구조": {
+      ".ai-run/": {
+        "SPEC.md": "spec-agent 출력 — 요구사항 명세 (Markdown)",
+        "PLAN.json": "planner 출력 — 실행 계획 및 Task DAG",
+        "POLICY.json": "policy-risk 출력 — 정책 판정 결과",
+        "BUDGET.json": "orchestrator 설정 — 토큰/시간/액션 예산",
+        "TASK_GRAPH.json": "planner 출력 — Task 의존성 그래프",
+        "MODEL_ASSIGNMENT.json": "orchestrator/planner 설정 — 에이전트별 모델 배정",
+        "CHANGES.json": "codegen 출력 — ChangeSet (diff 포함)",
+        "checkpoints/": "rollback 에이전트가 관리하는 체크포인트 스냅샷"
+      }
+    }
+  },
+
+  "schemas": {
+    "PLAN": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PLAN",
+      "description": "planner 에이전트가 생성하는 실행 계획 — Task DAG 포함",
+      "type": "object",
+      "required": ["planId", "runId", "sessionId", "createdAt", "tasks", "totalEstimatedTokens"],
+      "additionalProperties": false,
+      "properties": {
+        "planId": {
+          "type": "string",
+          "pattern": "^plan_\\d{8}_\\d{4}$",
+          "description": "실행 계획 식별자 — plan_{YYYYMMDD}_{seq4} 형식",
+          "examples": ["plan_20260302_0001"]
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^run_\\d{8}_\\d{4}$",
+          "description": "연결된 Run 식별자"
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "세션 식별자"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "계획 생성 시각 (UTC ISO 8601)"
+        },
+        "specRef": {
+          "type": "string",
+          "description": "기반이 된 SPEC.md 파일 경로"
+        },
+        "description": {
+          "type": "string",
+          "description": "계획 전체 요약 — 사용자에게 표시되는 Gate L1 문구"
+        },
+        "tasks": {
+          "type": "array",
+          "description": "실행 Task 배열 — 의존성 순서로 정렬",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/schemas/PLAN/$defs/PlanTask"
+          }
+        },
+        "totalEstimatedTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "전체 Task 예상 토큰 합계 — BUDGET.json의 tokenLimit과 비교"
+        },
+        "estimatedDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "전체 계획 예상 실행 시간 (밀리초)"
+        },
+        "toolRequests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/PLAN/$defs/ToolRequest"
+          },
+          "description": "필요한 외부 패키지/도구 요청 목록 — Gate L1(GATE_TOOL_APPROVAL) 대상"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "계획 버전 — 수정 시 증가 (재계획 추적)"
+        },
+        "previousPlanId": {
+          "type": "string",
+          "description": "이전 계획 ID — TEST_FAIL 후 재계획 시 참조"
+        }
+      },
+      "$defs": {
+        "PlanTask": {
+          "type": "object",
+          "description": "개별 실행 Task — 에이전트 단위 작업",
+          "required": ["id", "title", "agentId", "dependsOn", "estimatedTokens", "status"],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^t\\d{3}$",
+              "description": "Task 식별자 — t001, t002, ... 순번 형식",
+              "examples": ["t001", "t002"]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Task 제목 — 사용자/로그에 표시되는 짧은 설명"
+            },
+            "description": {
+              "type": "string",
+              "description": "Task 상세 설명 — 에이전트에게 전달되는 지시"
+            },
+            "agentId": {
+              "type": "string",
+              "enum": [
+                "orchestrator",
+                "spec-agent",
+                "policy-risk",
+                "planner",
+                "codegen",
+                "review",
+                "test-build",
+                "executor",
+                "rollback"
+              ],
+              "description": "이 Task를 수행할 에이전트"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "SPEC_ANALYSIS",
+                "POLICY_CHECK",
+                "CODE_GENERATE",
+                "CODE_REVIEW",
+                "TEST_RUN",
+                "BUILD_VERIFY",
+                "DEPLOY",
+                "ROLLBACK",
+                "GATE_WAIT"
+              ],
+              "description": "Task 유형 — 상태 머신 상태와 대응"
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^t\\d{3}$"
+              },
+              "description": "선행 Task ID 목록 — 모두 COMPLETED여야 이 Task 시작 가능",
+              "default": []
+            },
+            "inputs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "이 Task의 입력 파일/참조 목록"
+            },
+            "outputs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "이 Task가 생성하는 출력 파일/참조 목록"
+            },
+            "estimatedTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "예상 Claude API 토큰 소비량"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 300000,
+              "description": "Task 타임아웃 (밀리초) — 초과 시 AGENT_TIMEOUT 에러"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED", "SKIPPED"],
+              "description": "Task 현재 상태",
+              "default": "PENDING"
+            },
+            "startedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Task 시작 시각"
+            },
+            "completedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Task 완료 시각"
+            },
+            "actualTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "실제 소비된 토큰 수 — 완료 후 기록"
+            },
+            "constraints": {
+              "$ref": "#/schemas/PLAN/$defs/TaskConstraints",
+              "description": "이 Task에 적용되는 제약 조건"
+            },
+            "retryCount": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "재시도 횟수"
+            }
+          }
+        },
+        "TaskConstraints": {
+          "type": "object",
+          "description": "Task 실행 제약 조건 — PolicyDecision.constraints에서 파생",
+          "additionalProperties": false,
+          "properties": {
+            "writeAllow": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "쓰기 허용 경로 목록 (glob 패턴)",
+              "examples": [["packages/shared/src/**", "packages/core/src/**"]]
+            },
+            "writeDeny": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "쓰기 차단 경로 목록"
+            },
+            "packagesAllowed": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "사용 허가된 npm 패키지 목록 — 명시되지 않은 패키지 import 차단"
+            },
+            "networkAllow": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "허용된 외부 도메인 목록"
+            }
+          }
+        },
+        "ToolRequest": {
+          "type": "object",
+          "description": "외부 도구/패키지 요청 — Gate L1(GATE_TOOL_APPROVAL) 승인 필요",
+          "required": ["name", "version", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "npm 패키지명 또는 도구명"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$",
+              "description": "정확한 버전 (SemVer) — ^ 또는 ~ 없이 고정",
+              "examples": ["9.0.0", "4.5.1"]
+            },
+            "reason": {
+              "type": "string",
+              "description": "이 패키지가 필요한 사유 — 사용자에게 표시"
+            },
+            "scope": {
+              "type": "string",
+              "enum": ["dependencies", "devDependencies", "peerDependencies"],
+              "default": "dependencies"
+            },
+            "approved": {
+              "type": "boolean",
+              "description": "게이트 승인 여부 — GATE_TOOL_APPROVAL 결과로 설정"
+            }
+          }
+        }
+      }
+    },
+
+    "BUDGET": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BUDGET",
+      "description": "토큰/시간/액션 예산 설정 — orchestrator가 생성하고 모든 에이전트가 참조",
+      "type": "object",
+      "required": ["budgetId", "runId", "tokenLimit", "timeoutMs", "maxActions", "perAgent"],
+      "additionalProperties": false,
+      "properties": {
+        "budgetId": {
+          "type": "string",
+          "pattern": "^budget_\\d{8}_\\d{4}$",
+          "description": "예산 식별자 — budget_{YYYYMMDD}_{seq4} 형식"
+        },
+        "runId": {
+          "type": "string",
+          "description": "연결된 Run 식별자"
+        },
+        "tokenLimit": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "세션 전체 Claude API 토큰 한도 — 초과 시 EMERGENCY_STOP",
+          "examples": [100000, 200000]
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 60000,
+          "description": "전체 실행 타임아웃 (밀리초) — 초과 시 EMERGENCY_STOP",
+          "examples": [1800000]
+        },
+        "maxActions": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "세션 전체 OS 액션 최대 허용 수 — executor 호출 횟수",
+          "examples": [50, 100]
+        },
+        "perAgent": {
+          "type": "object",
+          "description": "에이전트별 토큰 예산 배분",
+          "additionalProperties": false,
+          "properties": {
+            "orchestrator": { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "spec-agent":   { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "policy-risk":  { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "planner":      { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "codegen":      { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "review":       { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "test-build":   { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "executor":     { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" },
+            "rollback":     { "$ref": "#/schemas/BUDGET/$defs/AgentBudget" }
+          }
+        },
+        "warningThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.8,
+          "description": "토큰 경고 임계값 — used/limit이 이 비율 초과 시 오케스트레이터에 경고"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "예산 생성 시각"
+        }
+      },
+      "$defs": {
+        "AgentBudget": {
+          "type": "object",
+          "description": "개별 에이전트의 토큰/시간 예산",
+          "required": ["tokenLimit", "timeoutMs"],
+          "additionalProperties": false,
+          "properties": {
+            "tokenLimit": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "이 에이전트에 허용된 최대 토큰 수"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "description": "이 에이전트의 단일 호출 타임아웃 (밀리초)"
+            },
+            "maxCalls": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "이 에이전트의 최대 호출 횟수"
+            }
+          }
+        }
+      },
+      "_defaults": {
+        "설명": "복잡도별 권장 예산 기본값",
+        "LOW": {
+          "tokenLimit": 50000,
+          "timeoutMs": 600000,
+          "maxActions": 20
+        },
+        "MEDIUM": {
+          "tokenLimit": 100000,
+          "timeoutMs": 1200000,
+          "maxActions": 50
+        },
+        "HIGH": {
+          "tokenLimit": 200000,
+          "timeoutMs": 1800000,
+          "maxActions": 100
+        }
+      }
+    },
+
+    "TASK_GRAPH": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TASK_GRAPH",
+      "description": "Task 의존성 그래프 — 병렬 실행 가능 그룹과 실행 순서를 정의",
+      "type": "object",
+      "required": ["graphId", "runId", "planId", "nodes", "parallelGroups", "executionOrder"],
+      "additionalProperties": false,
+      "properties": {
+        "graphId": {
+          "type": "string",
+          "pattern": "^graph_\\d{8}_\\d{4}$",
+          "description": "그래프 식별자 — graph_{YYYYMMDD}_{seq4} 형식"
+        },
+        "runId": {
+          "type": "string",
+          "description": "연결된 Run 식별자"
+        },
+        "planId": {
+          "type": "string",
+          "description": "기반이 된 PLAN.json의 planId"
+        },
+        "nodes": {
+          "type": "array",
+          "description": "그래프 노드 목록 — 각 노드는 하나의 Task에 대응",
+          "items": {
+            "$ref": "#/schemas/TASK_GRAPH/$defs/GraphNode"
+          },
+          "minItems": 1
+        },
+        "parallelGroups": {
+          "type": "array",
+          "description": "동시에 실행 가능한 Task 그룹 배열 — 같은 그룹 내 Task는 병렬 실행",
+          "items": {
+            "$ref": "#/schemas/TASK_GRAPH/$defs/ParallelGroup"
+          }
+        },
+        "executionOrder": {
+          "type": "array",
+          "description": "위상 정렬된 Task ID 배열 — 순서대로 실행 시 의존성 보장",
+          "items": {
+            "type": "string",
+            "pattern": "^t\\d{3}$"
+          }
+        },
+        "criticalPath": {
+          "type": "array",
+          "description": "임계 경로 — 전체 실행 시간을 결정하는 최장 Task 체인",
+          "items": {
+            "type": "string",
+            "pattern": "^t\\d{3}$"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "그래프 생성 시각"
+        }
+      },
+      "$defs": {
+        "GraphNode": {
+          "type": "object",
+          "description": "그래프 노드 — Task의 실행 관계 메타데이터",
+          "required": ["taskId", "agentId", "dependsOn"],
+          "additionalProperties": false,
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "pattern": "^t\\d{3}$",
+              "description": "PLAN.json의 Task ID와 동일"
+            },
+            "agentId": {
+              "type": "string",
+              "enum": [
+                "orchestrator",
+                "spec-agent",
+                "policy-risk",
+                "planner",
+                "codegen",
+                "review",
+                "test-build",
+                "executor",
+                "rollback"
+              ],
+              "description": "실행 에이전트"
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^t\\d{3}$"
+              },
+              "description": "직접 선행 Task ID 목록 (DAG 엣지)",
+              "default": []
+            },
+            "parallelGroupId": {
+              "type": "string",
+              "description": "소속 병렬 그룹 ID — 동일 그룹 내 Task는 동시 실행 가능"
+            },
+            "estimatedTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "예상 토큰 소비량 — 임계 경로 계산에 사용"
+            },
+            "isGateNode": {
+              "type": "boolean",
+              "default": false,
+              "description": "게이트 대기 노드 여부 — true면 사용자 승인 후 후속 Task 시작"
+            },
+            "gateId": {
+              "type": "string",
+              "description": "isGateNode=true인 경우 해당 게이트 ID"
+            }
+          }
+        },
+        "ParallelGroup": {
+          "type": "object",
+          "description": "병렬 실행 가능한 Task 그룹",
+          "required": ["groupId", "taskIds"],
+          "additionalProperties": false,
+          "properties": {
+            "groupId": {
+              "type": "string",
+              "description": "그룹 식별자 — pg001, pg002 등"
+            },
+            "taskIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^t\\d{3}$"
+              },
+              "minItems": 2,
+              "description": "동시 실행 가능한 Task ID 목록 — 최소 2개"
+            },
+            "maxConcurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3,
+              "description": "최대 동시 실행 수 — 토큰 예산 초과 방지"
+            }
+          }
+        }
+      }
+    },
+
+    "MODEL_ASSIGNMENT": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MODEL_ASSIGNMENT",
+      "description": "에이전트별 Claude 모델 배정 설정 — 복잡도/비용에 따라 orchestrator가 결정",
+      "type": "object",
+      "required": ["assignmentId", "runId", "assignments", "strategy", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "assignmentId": {
+          "type": "string",
+          "pattern": "^assign_\\d{8}_\\d{4}$",
+          "description": "배정 설정 식별자"
+        },
+        "runId": {
+          "type": "string",
+          "description": "연결된 Run 식별자"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["COST_OPTIMIZED", "QUALITY_FIRST", "BALANCED"],
+          "description": "모델 배정 전략 — 사용자 설정 또는 orchestrator 판단",
+          "default": "BALANCED"
+        },
+        "assignments": {
+          "type": "object",
+          "description": "에이전트별 모델 배정 맵",
+          "additionalProperties": false,
+          "properties": {
+            "orchestrator": { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "spec-agent":   { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "policy-risk":  { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "planner":      { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "codegen":      { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "review":       { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "test-build":   { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "executor":     { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" },
+            "rollback":     { "$ref": "#/schemas/MODEL_ASSIGNMENT/$defs/AgentModelConfig" }
+          }
+        },
+        "totalEstimatedCost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "전체 추정 API 비용 (USD) — 토큰 예산 기반 계산"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "배정 설정 생성 시각"
+        }
+      },
+      "$defs": {
+        "AgentModelConfig": {
+          "type": "object",
+          "description": "개별 에이전트의 모델 및 추론 파라미터 설정",
+          "required": ["modelId", "maxTokens"],
+          "additionalProperties": false,
+          "properties": {
+            "modelId": {
+              "type": "string",
+              "enum": [
+                "claude-opus-4-6",
+                "claude-sonnet-4-6",
+                "claude-haiku-4-5"
+              ],
+              "description": "Claude 모델 ID — 허용된 모델만 사용"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.3,
+              "description": "생성 온도 — 0.0(결정적)~1.0(창의적), 코드 생성은 0.2~0.4 권장"
+            },
+            "maxTokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8096,
+              "description": "단일 응답 최대 토큰 수"
+            },
+            "systemPromptRef": {
+              "type": "string",
+              "description": "시스템 프롬프트 파일 경로 — prompts/ 디렉토리 하위",
+              "examples": [".claude/prompts/codegen-system.md"]
+            },
+            "fallbackModelId": {
+              "type": "string",
+              "enum": [
+                "claude-opus-4-6",
+                "claude-sonnet-4-6",
+                "claude-haiku-4-5"
+              ],
+              "description": "주 모델 실패 또는 한도 초과 시 대체 모델"
+            },
+            "costPerMToken": {
+              "type": "number",
+              "minimum": 0,
+              "description": "백만 토큰당 비용 (USD) — 예산 계산용"
+            }
+          }
+        }
+      },
+      "_defaults": {
+        "설명": "CLAUDE.md 에이전트 모델 배정 기본값",
+        "BALANCED": {
+          "orchestrator": { "modelId": "claude-opus-4-6",   "temperature": 0.3, "maxTokens": 4096 },
+          "spec-agent":   { "modelId": "claude-haiku-4-5",  "temperature": 0.2, "maxTokens": 2048 },
+          "policy-risk":  { "modelId": "claude-opus-4-6",   "temperature": 0.1, "maxTokens": 2048 },
+          "planner":      { "modelId": "claude-sonnet-4-6", "temperature": 0.3, "maxTokens": 4096 },
+          "codegen":      { "modelId": "claude-sonnet-4-6", "temperature": 0.2, "maxTokens": 8096 },
+          "review":       { "modelId": "claude-sonnet-4-6", "temperature": 0.1, "maxTokens": 4096 },
+          "test-build":   { "modelId": "claude-haiku-4-5",  "temperature": 0.1, "maxTokens": 2048 },
+          "executor":     { "modelId": "claude-sonnet-4-6", "temperature": 0.1, "maxTokens": 2048 },
+          "rollback":     { "modelId": "claude-haiku-4-5",  "temperature": 0.1, "maxTokens": 2048 }
+        }
+      }
+    }
+  }
+}
