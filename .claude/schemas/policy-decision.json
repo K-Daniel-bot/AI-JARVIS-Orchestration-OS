@@ -1,0 +1,85 @@
+{
+  "$schema": "https://jarvis-os.local/schemas/policy-decision.v1.json",
+  "version": "1.0",
+
+  "PolicyDecision": {
+    "decision_id": "pd_{date}_{seq}",
+    "timestamp": "ISO 8601",
+
+    "subject": {
+      "user_id": "string",
+      "role": "Owner | Admin | User | Guest | AI-Autonomous",
+      "device": "string",
+      "session_id": "string"
+    },
+
+    "request": {
+      "raw_input": "string",
+      "intent": "CODE_IMPLEMENTATION | FILE_OPERATION | APP_LAUNCH | WEB_ACCESS | SYSTEM_CONFIG | ...",
+      "targets": ["string"],
+      "requires_web_access": "boolean",
+      "requires_login": "boolean"
+    },
+
+    "policy_sources": [
+      {
+        "type": "contract | blocklist | allowlist",
+        "id": "string",
+        "hash": "sha256:...",
+        "loaded_from": "local://policy/..."
+      }
+    ],
+
+    "outcome": {
+      "status": "ALLOW | DENY | APPROVAL_REQUIRED | CONSTRAINED_ALLOW",
+      "risk_score": "0~100",
+      "risk_level": "LOW | MEDIUM | HIGH | CRITICAL",
+      "requires_gates": ["GATE_PLAN", "GATE_APPLY_CHANGES", "GATE_DEPLOY", "GATE_WEB_PRECHECK", "GATE_DOWNLOAD", "GATE_DESTRUCTIVE"],
+      "reason_codes": ["string"],
+      "human_explanation": "string (사용자에게 보여줄 판정 이유)"
+    },
+
+    "constraints": {
+      "fs": {
+        "read_allow": ["glob pattern"],
+        "write_allow": ["glob pattern"],
+        "write_deny": ["/Windows/**", "/System/**", "/Users/**/AppData/**"]
+      },
+      "exec": {
+        "allow": ["node", "python", "git", "..."],
+        "deny": ["sudo", "powershell_admin", "regedit"]
+      },
+      "network": {
+        "allow_domains": ["string"],
+        "deny_domains": ["banking.*", "payment.*"],
+        "default": "DENY"
+      },
+      "web_auth": {
+        "credential_handling": "VAULT_ONLY",
+        "manual_entry_required_for_high_risk": true
+      }
+    },
+
+    "required_capabilities": [
+      {
+        "cap": "fs.read | fs.write | exec.run | app.launch | network.access | ...",
+        "scope": "string or string[]",
+        "ttl_seconds": "number",
+        "max_uses": "number (default: 1)"
+      }
+    ],
+
+    "denials": [
+      {
+        "code": "string",
+        "pattern": "regex",
+        "message": "string (사용자에게 보여줄 거부 이유)"
+      }
+    ],
+
+    "audit": {
+      "log_level": "FULL | SUMMARY",
+      "redactions": ["secrets", "tokens", "cookies", "passwords"]
+    }
+  }
+}

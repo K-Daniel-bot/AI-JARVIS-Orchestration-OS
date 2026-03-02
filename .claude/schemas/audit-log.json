@@ -1,0 +1,70 @@
+{
+  "$schema": "https://jarvis-os.local/schemas/audit-log.v1.json",
+  "version": "1.0",
+
+  "AuditEntry": {
+    "audit_id": "aud_{date}_{seq}",
+    "timestamp": "ISO 8601",
+    "log_level": "FULL | SUMMARY",
+
+    "who": {
+      "user_id": "string",
+      "role": "Owner | Admin | User | Guest | AI-Autonomous",
+      "session_id": "string"
+    },
+
+    "what": {
+      "raw_input": "string (사용자 원본 요청)",
+      "ai_interpretation": "string (AI 해석 결과)",
+      "intent": "string"
+    },
+
+    "policy": {
+      "policy_decision_id": "string",
+      "risk_score": "number (0~100)",
+      "risk_level": "LOW | MEDIUM | HIGH | CRITICAL",
+      "status": "ALLOW | DENY | APPROVAL_REQUIRED | CONSTRAINED_ALLOW"
+    },
+
+    "capability": {
+      "token_ids": ["string"],
+      "scopes_granted": ["string"]
+    },
+
+    "execution": {
+      "run_id": "string",
+      "actions_performed": [
+        {
+          "action_id": "string",
+          "type": "string",
+          "status": "SUCCESS | FAILED | DENIED",
+          "duration_ms": "number"
+        }
+      ],
+      "rollback_performed": "boolean",
+      "rollback_reason": "string | null"
+    },
+
+    "result": {
+      "status": "COMPLETED | FAILED | ROLLED_BACK | ABORTED | DENIED",
+      "output_summary": "string",
+      "artifacts": ["string (파일 경로 등)"]
+    },
+
+    "evidence": {
+      "screenshots": ["string (ref)"],
+      "terminal_logs": ["string (ref)"],
+      "previous_action_id": "string | null (연쇄 추적용)"
+    },
+
+    "redactions": {
+      "applied": ["secrets", "tokens", "cookies", "passwords"],
+      "patterns_matched": "number"
+    },
+
+    "integrity": {
+      "hash": "sha256 (이 엔트리의 해시)",
+      "previous_hash": "sha256 (이전 엔트리 해시, append-only 체인)"
+    }
+  }
+}

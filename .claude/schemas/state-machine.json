@@ -1,0 +1,177 @@
+{
+  "$schema": "https://jarvis-os.local/schemas/state-machine.v1.json",
+  "version": "1.0",
+  "engine": "XState v5",
+
+  "States": {
+    "IDLE": {
+      "description": "대기 상태. 사용자 요청 수신 대기",
+      "on": {
+        "USER_REQUEST": "SPEC_ANALYSIS"
+      }
+    },
+    "SPEC_ANALYSIS": {
+      "description": "Spec Agent가 요구사항 분석 중",
+      "agent": "spec-agent",
+      "on": {
+        "SPEC_COMPLETE": "POLICY_CHECK",
+        "SPEC_NEED_CLARIFICATION": "AWAITING_USER_INPUT",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "POLICY_CHECK": {
+      "description": "Policy/Risk Agent가 정책 판정 중",
+      "agent": "policy-risk",
+      "on": {
+        "ALLOW": "PLANNING",
+        "CONSTRAINED_ALLOW": "PLANNING",
+        "APPROVAL_REQUIRED": "GATE_PLAN_APPROVAL",
+        "DENY": "DENIED",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "GATE_PLAN_APPROVAL": {
+      "description": "Gate #1: 사용자에게 계획/범위 승인 요청",
+      "type": "approval_gate",
+      "gate_level": "L1",
+      "on": {
+        "APPROVED": "PLANNING",
+        "REJECTED": "DENIED",
+        "SCOPE_MODIFIED": "POLICY_CHECK",
+        "TIMEOUT": "DENIED"
+      }
+    },
+    "PLANNING": {
+      "description": "Planner Agent가 실행 계획 수립 중",
+      "agent": "planner",
+      "on": {
+        "PLAN_COMPLETE": "CODE_GENERATION",
+        "PLAN_NEEDS_TOOLS": "GATE_TOOL_APPROVAL",
+        "NO_CODE_NEEDED": "ACTION_EXECUTION",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "GATE_TOOL_APPROVAL": {
+      "description": "Gate #1A: 도구/패키지/네트워크 승인",
+      "type": "approval_gate",
+      "gate_level": "L1",
+      "on": {
+        "APPROVED": "CODE_GENERATION",
+        "REJECTED": "DENIED"
+      }
+    },
+    "CODE_GENERATION": {
+      "description": "Codegen Agent가 코드 생성 중",
+      "agent": "codegen",
+      "on": {
+        "CODE_COMPLETE": "CODE_REVIEW",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "CODE_REVIEW": {
+      "description": "Review Agent가 정적 분석/보안 검토 중",
+      "agent": "review",
+      "on": {
+        "REVIEW_PASS": "GATE_APPLY_CHANGES",
+        "REVIEW_BLOCKERS": "PLANNING",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "GATE_APPLY_CHANGES": {
+      "description": "Gate #2: 변경 적용 승인",
+      "type": "approval_gate",
+      "gate_level": "L2",
+      "on": {
+        "APPROVED": "APPLY_CHANGES",
+        "REJECTED": "DENIED"
+      }
+    },
+    "APPLY_CHANGES": {
+      "description": "Executor Agent가 패치 적용 중",
+      "agent": "executor",
+      "on": {
+        "APPLY_SUCCESS": "TESTING",
+        "APPLY_FAILED": "ERROR_RECOVERY"
+      }
+    },
+    "TESTING": {
+      "description": "Test/Build Agent가 검증 중",
+      "agent": "test-build",
+      "on": {
+        "TEST_PASS": "GATE_DEPLOY",
+        "TEST_FAIL": "PLANNING",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "GATE_DEPLOY": {
+      "description": "Gate #3: 실행/배포 승인 (선택적)",
+      "type": "approval_gate",
+      "gate_level": "L2",
+      "on": {
+        "APPROVED": "DEPLOY_EXECUTE",
+        "SKIPPED": "COMPLETED",
+        "REJECTED": "DENIED"
+      }
+    },
+    "DEPLOY_EXECUTE": {
+      "description": "Executor Agent가 실행/배포 중",
+      "agent": "executor",
+      "on": {
+        "SUCCESS": "COMPLETED",
+        "ERROR": "ERROR_RECOVERY"
+      }
+    },
+    "COMPLETED": {
+      "description": "작업 성공 완료",
+      "type": "final"
+    },
+    "DENIED": {
+      "description": "정책 거부 또는 사용자 거부로 종료",
+      "type": "final"
+    },
+    "ERROR_RECOVERY": {
+      "description": "Rollback Agent가 복구 중",
+      "agent": "rollback",
+      "on": {
+        "RECOVERY_SUCCESS": "COMPLETED",
+        "RECOVERY_FAILED": "EMERGENCY_STOP"
+      }
+    },
+    "EMERGENCY_STOP": {
+      "description": "비상 중단. 모든 Capability 무효화",
+      "type": "final"
+    },
+    "AWAITING_USER_INPUT": {
+      "description": "사용자 추가 입력 대기",
+      "on": {
+        "USER_RESPONSE": "SPEC_ANALYSIS",
+        "CANCEL": "DENIED"
+      }
+    }
+  },
+
+  "SpecialGates": {
+    "GATE_WEB_PRECHECK": {
+      "trigger": "BROWSER_OPEN_URL 액션 직전",
+      "check": "URL 신뢰도/피싱 탐지",
+      "gate_level": "L1"
+    },
+    "GATE_DOWNLOAD": {
+      "trigger": "BROWSER_DOWNLOAD 액션 직전",
+      "check": "파일 스캔 + 위험 평가",
+      "gate_level": "L1"
+    },
+    "GATE_DESTRUCTIVE": {
+      "trigger": "FS_DELETE, 대량 변경, 권한 변경",
+      "check": "파괴적 작업 확인",
+      "gate_level": "L2"
+    }
+  },
+
+  "RoutingRules": {
+    "DENY_즉시종료": "실행 금지, 이유 표시",
+    "Tool_install_Network_Login_Patch_Deploy": "반드시 게이트 통과",
+    "OS조작": "Apply/RUN에서 Executor만 수행",
+    "테스트실패": "TestAgent → Planner(수정계획) → Codegen(패치) → Review → Test"
+  }
+}

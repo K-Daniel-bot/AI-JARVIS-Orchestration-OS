@@ -1,0 +1,81 @@
+{
+  "$schema": "https://jarvis-os.local/schemas/action-api.v1.json",
+  "version": "1.0",
+
+  "Action": {
+    "action_id": "act_{seq}",
+    "type": "FS_READ | FS_WRITE | FS_LIST | FS_MOVE | FS_DELETE | EXEC_RUN | PROCESS_KILL | APP_LAUNCH | APP_FOCUS | WINDOW_CLICK | WINDOW_TYPE | WINDOW_SHORTCUT | BROWSER_OPEN_URL | BROWSER_CLICK | BROWSER_TYPE | BROWSER_DOWNLOAD | BROWSER_UPLOAD | BROWSER_LOGIN_REQUEST",
+    "params": {
+      "description": "액션 유형별 파라미터 (app, path, url, command 등)"
+    },
+    "requires_capabilities": ["string (cap ID)"],
+    "risk_tags": ["EXECUTION", "FILE_WRITE", "NETWORK", "DESTRUCTIVE", "AUTH"],
+    "preconditions": ["string"],
+    "postconditions": ["string"],
+    "evidence": {
+      "capture_screenshot": "boolean",
+      "capture_stdout": "boolean"
+    }
+  },
+
+  "ActionTypes": {
+    "파일/프로젝트": {
+      "FS_READ": "범위 제한 파일 읽기",
+      "FS_WRITE": "범위 제한 파일 쓰기",
+      "FS_LIST": "디렉토리 목록",
+      "FS_MOVE": "파일 이동",
+      "FS_DELETE": "파일 삭제 (기본 승인 필요 + 휴지통 모드 권장)"
+    },
+    "프로세스/명령": {
+      "EXEC_RUN": "allowlist 명령만 실행",
+      "PROCESS_KILL": "프로세스 종료 (승인 필요)"
+    },
+    "앱/윈도우": {
+      "APP_LAUNCH": "앱 실행",
+      "APP_FOCUS": "앱 포커스",
+      "WINDOW_CLICK": "윈도우 클릭",
+      "WINDOW_TYPE": "윈도우 텍스트 입력",
+      "WINDOW_SHORTCUT": "단축키 실행"
+    },
+    "웹/브라우저": {
+      "BROWSER_OPEN_URL": "URL 열기",
+      "BROWSER_CLICK": "브라우저 요소 클릭",
+      "BROWSER_TYPE": "브라우저 텍스트 입력",
+      "BROWSER_DOWNLOAD": "다운로드 (승인 필요)",
+      "BROWSER_UPLOAD": "업로드 (승인 필요)",
+      "BROWSER_LOGIN_REQUEST": "로그인 요청 (Vault/Manual 정책 적용)"
+    }
+  },
+
+  "EnforcementHooks": {
+    "pre_enforce": {
+      "input": ["action", "current_context", "capabilities", "policy_constraints"],
+      "output": "allow | deny | gate_required + reason",
+      "description": "액션 실행 직전 강제 검사"
+    },
+    "post_enforce": {
+      "input": ["execution_result"],
+      "output": "next_action | abort + reason",
+      "description": "결과 이상 징후 탐지 (예상 외 파일 삭제, 외부 전송 등)"
+    }
+  },
+
+  "ExecutionTrace": {
+    "run_id": "run_{date}_{seq}",
+    "status": "SUCCESS | PARTIAL_SUCCESS | FAILED | ABORTED",
+    "steps": [
+      {
+        "action_id": "string",
+        "status": "SUCCESS | FAILED | SKIPPED | DENIED",
+        "started_at": "ISO 8601",
+        "ended_at": "ISO 8601",
+        "evidence": {
+          "screenshot_ref": "string | null",
+          "stdout_ref": "string | null"
+        },
+        "error": "string | null"
+      }
+    ],
+    "redactions_applied": ["string"]
+  }
+}

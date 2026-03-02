@@ -1,0 +1,65 @@
+{
+  "$schema": "https://jarvis-os.local/schemas/capability-token.v1.json",
+  "version": "1.0",
+
+  "CapabilityToken": {
+    "token_id": "cap_{date}_{seq}",
+    "issued_at": "ISO 8601",
+    "issued_by": "policy-risk-agent",
+    "approved_by": "user | auto (low-risk)",
+
+    "grant": {
+      "cap": "fs.read | fs.write | exec.run | app.launch | network.access | clipboard.read | clipboard.write | browser.navigate | browser.download | process.kill",
+      "scope": "string or string[] (glob pattern)",
+      "ttl_seconds": "number",
+      "max_uses": "number (default: 1)"
+    },
+
+    "context": {
+      "session_id": "string",
+      "run_id": "string",
+      "policy_decision_id": "string",
+      "trust_mode": "observe | suggest | semi-auto | full-auto"
+    },
+
+    "status": "ACTIVE | CONSUMED | EXPIRED | REVOKED",
+    "consumed_at": "ISO 8601 | null",
+    "consumed_by_action": "action_id | null",
+    "revoked_reason": "string | null"
+  },
+
+  "CapabilityExamples": [
+    {
+      "cap": "fs.read",
+      "scope": "/workspace/project/**",
+      "ttl_seconds": 900,
+      "max_uses": 1,
+      "_comment": "프로젝트 디렉토리 읽기, 15분 유효, 1회"
+    },
+    {
+      "cap": "app.launch",
+      "scope": "vscode",
+      "ttl_seconds": 300,
+      "max_uses": 1,
+      "_comment": "VSCode 실행, 5분 유효, 1회"
+    },
+    {
+      "cap": "network.access",
+      "scope": "github.com",
+      "ttl_seconds": 600,
+      "max_uses": 3,
+      "_comment": "GitHub 접근, 10분 유효, 3회"
+    }
+  ],
+
+  "ValidationRules": {
+    "before_action": [
+      "token.status === 'ACTIVE'",
+      "now < token.issued_at + token.grant.ttl_seconds",
+      "token.usage_count < token.grant.max_uses",
+      "action.scope matches token.grant.scope",
+      "action.type matches token.grant.cap"
+    ],
+    "on_violation": "DENY + audit_log + alert_orchestrator"
+  }
+}
