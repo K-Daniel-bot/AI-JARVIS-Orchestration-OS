@@ -1,6 +1,6 @@
 ---
 name: spec-analysis
-description: "요구사항 분석 및 명세 작성. 사용자 요청을 구조화된 SPEC.md로 변환에 사용."
+description: "요구사항 분석 및 명세 작성. 사용자 요청을 구조화된 스펙 문서로 변환에 사용."
 user-invocable: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "코드 리뷰 수행. PR 또는 변경된 파일의 보안/품질/아키텍처 검토에 사용."
+description: "코드 리뷰 수행. 풀 리퀘스트 또는 변경된 파일의 보안/품질/아키텍처 검토에 사용."
 user-invocable: true
 ---
 

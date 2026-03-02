@@ -147,6 +147,17 @@
         "USER_RESPONSE": "SPEC_ANALYSIS",
         "CANCEL": "DENIED"
       }
+    },
+    "MOBILE_ACTION_EXECUTION": {
+      "description": "Executor Agent가 모바일 디바이스 액션 실행 중",
+      "agent": "executor",
+      "requires": "MOBILE_DEVICE_CONNECTED",
+      "on": {
+        "MOBILE_ACTION_SUCCESS": "COMPLETED",
+        "MOBILE_ACTION_FAILED": "ERROR_RECOVERY",
+        "MOBILE_DEVICE_DISCONNECTED": "AWAITING_USER_INPUT",
+        "ERROR": "ERROR_RECOVERY"
+      }
     }
   },
 
@@ -165,6 +176,29 @@
       "trigger": "FS_DELETE, 대량 변경, 권한 변경",
       "check": "파괴적 작업 확인",
       "gate_level": "L2"
+    },
+    "GATE_PHONE_CONFIRM": {
+      "trigger": "MOBILE_CALL_DIAL 액션 직전",
+      "check": "발신 대상 확인 + 사용자 승인",
+      "gate_level": "L2",
+      "ui_display": "연락처 정보 + '전화를 걸까요?' 확인 다이얼로그"
+    },
+    "GATE_SMS_CONFIRM": {
+      "trigger": "MOBILE_SMS_SEND 액션 직전",
+      "check": "수신자 + 메시지 내용 확인 + 사용자 승인",
+      "gate_level": "L2",
+      "ui_display": "수신자 + 메시지 미리보기 + '전송할까요?' 확인"
+    },
+    "GATE_APP_ACCESS": {
+      "trigger": "MOBILE_APP_ACTION, MOBILE_APP_LAUNCH 직전",
+      "check": "접근 앱 + 수행 액션 확인",
+      "gate_level": "L1"
+    },
+    "GATE_MESSENGER_READ": {
+      "trigger": "MOBILE_MESSENGER_READ 직전",
+      "check": "메신저 대화 접근 승인",
+      "gate_level": "L2",
+      "ui_display": "어떤 대화를 읽을지 + 개인정보 경고"
     }
   },
 
@@ -172,6 +206,8 @@
     "DENY_즉시종료": "실행 금지, 이유 표시",
     "Tool_install_Network_Login_Patch_Deploy": "반드시 게이트 통과",
     "OS조작": "Apply/RUN에서 Executor만 수행",
-    "테스트실패": "TestAgent → Planner(수정계획) → Codegen(패치) → Review → Test"
+    "테스트실패": "TestAgent → Planner(수정계획) → Codegen(패치) → Review → Test",
+    "모바일_액션": "반드시 해당 GATE 통과 후 Executor만 수행",
+    "모바일_연결없음": "MOBILE_DEVICE_DISCONNECTED → 사용자에게 연결 안내"
   }
 }

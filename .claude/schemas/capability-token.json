@@ -9,7 +9,7 @@
     "approved_by": "user | auto (low-risk)",
 
     "grant": {
-      "cap": "fs.read | fs.write | exec.run | app.launch | network.access | clipboard.read | clipboard.write | browser.navigate | browser.download | process.kill",
+      "cap": "fs.read | fs.write | exec.run | app.launch | network.access | clipboard.read | clipboard.write | browser.navigate | browser.download | process.kill | mobile.contact.read | mobile.call.dial | mobile.sms.send | mobile.sms.read | mobile.messenger.send | mobile.messenger.read | mobile.app.control | mobile.notification.read",
       "scope": "string or string[] (glob pattern)",
       "ttl_seconds": "number",
       "max_uses": "number (default: 1)"
@@ -49,6 +49,41 @@
       "ttl_seconds": 600,
       "max_uses": 3,
       "_comment": "GitHub 접근, 10분 유효, 3회"
+    },
+    {
+      "cap": "mobile.contact.read",
+      "scope": "*",
+      "ttl_seconds": 300,
+      "max_uses": 5,
+      "_comment": "연락처 검색/읽기, 5분 유효, 5회"
+    },
+    {
+      "cap": "mobile.call.dial",
+      "scope": "+82-10-*",
+      "ttl_seconds": 120,
+      "max_uses": 1,
+      "_comment": "국내 번호로 전화 걸기, 2분 유효, 1회"
+    },
+    {
+      "cap": "mobile.sms.send",
+      "scope": "+82-*",
+      "ttl_seconds": 180,
+      "max_uses": 1,
+      "_comment": "국내 번호로 문자 전송, 3분 유효, 1회"
+    },
+    {
+      "cap": "mobile.messenger.read",
+      "scope": "kakaotalk:chatroom:*",
+      "ttl_seconds": 300,
+      "max_uses": 1,
+      "_comment": "카카오톡 대화방 읽기, 5분 유효, 1회"
+    },
+    {
+      "cap": "mobile.app.control",
+      "scope": "com.example.app",
+      "ttl_seconds": 600,
+      "max_uses": 3,
+      "_comment": "특정 앱 제어, 10분 유효, 3회"
     }
   ],
 

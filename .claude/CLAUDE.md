@@ -39,6 +39,9 @@ turbo run test --filter=policy-engine # 특정 패키지 테스트
 ```
 
 ## Code Style
+- **파일 헤더/섹션 주석은 반드시 한글로 작성** (영문 주석 금지)
+  - 예: `// 정책 판정 엔진`, `/* 감사 로그 처리 */`, `/** 에이전트 메시지 버스 */`
+  - 코드 식별자(변수명/함수명/타입명)는 영문 유지, 설명 텍스트만 한글
 - 2-space indentation (절대 4-space 아님)
 - Named exports only (default export 금지)
 - 모든 public 함수에 명시적 return type

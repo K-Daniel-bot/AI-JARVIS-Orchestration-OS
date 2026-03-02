@@ -255,3 +255,94 @@ pre_enforce: DENY
 → 즉시 중단 + 감사 로그 기록
 → Orchestrator에 보안 위반 보고
 ```
+
+---
+
+## 6. 모바일 액션 실행
+
+### 6.1 전제 조건
+- Companion App 연결 상태: CONNECTED
+- 유효한 Capability Token (mobile.* 범위)
+- 해당 Gate 승인 완료 (GATE_PHONE_CONFIRM, GATE_SMS_CONFIRM, GATE_MESSENGER_READ, GATE_APP_ACCESS)
+
+### 6.2 MobileActionBridge 실행 흐름
+
+```
+1. MobileActionBridge를 통해 Companion App에 명령 전송
+2. WebSocket ACK 수신 대기 (타임아웃: 10초)
+3. 실행 결과 수신 대기 (타임아웃: 액션별 상이)
+4. 결과 검증 + 감사 로그 기록
+5. 실패 시 → Rollback Agent에 복구 위임
+```
+
+### 6.3 모바일 전용 타임아웃
+
+| 액션 유형 | 타임아웃 |
+|----------|---------|
+| MOBILE_CONTACT_SEARCH | 5초 |
+| MOBILE_CALL_DIAL | 30초 (링 대기) |
+| MOBILE_CALL_END | 5초 |
+| MOBILE_SMS_SEND | 10초 |
+| MOBILE_SMS_READ | 10초 |
+| MOBILE_MESSENGER_SEND | 15초 |
+| MOBILE_MESSENGER_READ | 15초 |
+| MOBILE_APP_LAUNCH | 10초 |
+| MOBILE_APP_ACTION | 20초 |
+| MOBILE_NOTIFICATION_READ | 5초 |
+| MOBILE_DEVICE_STATUS | 3초 |
+
+### 6.4 모바일 액션 유형
+
+```
+모바일/연락처:
+  MOBILE_CONTACT_SEARCH    연락처 검색 (이름/번호/그룹)
+  MOBILE_CONTACT_READ      연락처 상세 조회
+
+모바일/전화:
+  MOBILE_CALL_DIAL         전화 걸기 (GATE_PHONE_CONFIRM 필수)
+  MOBILE_CALL_END          통화 종료
+  MOBILE_CALL_STATUS       통화 상태 조회
+
+모바일/문자:
+  MOBILE_SMS_SEND          문자 전송 (GATE_SMS_CONFIRM 필수)
+  MOBILE_SMS_READ          문자 읽기 (승인 필수)
+
+모바일/메신저:
+  MOBILE_MESSENGER_SEND    메신저 메시지 전송 (승인 필수)
+  MOBILE_MESSENGER_READ    메신저 메시지 읽기 (GATE_MESSENGER_READ 필수)
+
+모바일/앱제어:
+  MOBILE_APP_LAUNCH        모바일 앱 실행 (GATE_APP_ACCESS 필수)
+  MOBILE_APP_FOCUS         모바일 앱 전환
+  MOBILE_APP_ACTION        Accessibility 기반 앱 내 액션 (GATE_APP_ACCESS 필수)
+
+모바일/알림:
+  MOBILE_NOTIFICATION_READ     알림 조회
+  MOBILE_NOTIFICATION_DISMISS  알림 해제
+
+모바일/시스템:
+  MOBILE_DEVICE_STATUS     디바이스 상태 조회
+  MOBILE_CLIPBOARD_SYNC    클립보드 동기화
+```
+
+### 6.5 연결 끊김 처리
+
+```
+WebSocket 연결 끊김 감지:
+  1. 즉시 재연결 시도 (최대 5회, 지수 백오프)
+  2. 진행 중 액션 → 상태 보존 (Token 미소비)
+  3. 재연결 성공 → 액션 재개 (사용자 재확인 필요)
+  4. 재연결 실패 → MOBILE_DEVICE_DISCONNECTED 이벤트
+     → AWAITING_USER_INPUT 상태 전이
+     → "스마트폰 연결이 끊겼습니다. 재연결을 확인해주세요."
+```
+
+### 6.6 차단 앱 강제 검사
+
+```
+MOBILE_APP_LAUNCH, MOBILE_APP_ACTION 실행 전:
+  1. 대상 앱 패키지명 추출
+  2. 차단 목록(뱅킹/증권/결제) 대조
+  3. 차단 대상 → 즉시 DENY + "금융/결제 앱은 자동화 대상에서 제외됩니다"
+  4. 이 검사는 우회 불가 (contract.md §1, §9 준수)
+```

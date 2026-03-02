@@ -4,12 +4,12 @@
 
   "Action": {
     "action_id": "act_{seq}",
-    "type": "FS_READ | FS_WRITE | FS_LIST | FS_MOVE | FS_DELETE | EXEC_RUN | PROCESS_KILL | APP_LAUNCH | APP_FOCUS | WINDOW_CLICK | WINDOW_TYPE | WINDOW_SHORTCUT | BROWSER_OPEN_URL | BROWSER_CLICK | BROWSER_TYPE | BROWSER_DOWNLOAD | BROWSER_UPLOAD | BROWSER_LOGIN_REQUEST",
+    "type": "FS_READ | FS_WRITE | FS_LIST | FS_MOVE | FS_DELETE | EXEC_RUN | PROCESS_KILL | APP_LAUNCH | APP_FOCUS | WINDOW_CLICK | WINDOW_TYPE | WINDOW_SHORTCUT | BROWSER_OPEN_URL | BROWSER_CLICK | BROWSER_TYPE | BROWSER_DOWNLOAD | BROWSER_UPLOAD | BROWSER_LOGIN_REQUEST | MOBILE_CONTACT_SEARCH | MOBILE_CONTACT_READ | MOBILE_CALL_DIAL | MOBILE_CALL_END | MOBILE_CALL_STATUS | MOBILE_SMS_SEND | MOBILE_SMS_READ | MOBILE_MESSENGER_SEND | MOBILE_MESSENGER_READ | MOBILE_APP_LAUNCH | MOBILE_APP_FOCUS | MOBILE_APP_ACTION | MOBILE_NOTIFICATION_READ | MOBILE_NOTIFICATION_DISMISS | MOBILE_DEVICE_STATUS | MOBILE_CLIPBOARD_SYNC",
     "params": {
       "description": "액션 유형별 파라미터 (app, path, url, command 등)"
     },
     "requires_capabilities": ["string (cap ID)"],
-    "risk_tags": ["EXECUTION", "FILE_WRITE", "NETWORK", "DESTRUCTIVE", "AUTH"],
+    "risk_tags": ["EXECUTION", "FILE_WRITE", "NETWORK", "DESTRUCTIVE", "AUTH", "MOBILE", "PHONE_CALL", "MESSENGER"],
     "preconditions": ["string"],
     "postconditions": ["string"],
     "evidence": {
@@ -44,6 +44,36 @@
       "BROWSER_DOWNLOAD": "다운로드 (승인 필요)",
       "BROWSER_UPLOAD": "업로드 (승인 필요)",
       "BROWSER_LOGIN_REQUEST": "로그인 요청 (Vault/Manual 정책 적용)"
+    },
+    "모바일/연락처": {
+      "MOBILE_CONTACT_SEARCH": "연락처 검색 (이름/번호/그룹)",
+      "MOBILE_CONTACT_READ": "연락처 상세 조회"
+    },
+    "모바일/전화": {
+      "MOBILE_CALL_DIAL": "전화 걸기 (승인 필수)",
+      "MOBILE_CALL_END": "통화 종료",
+      "MOBILE_CALL_STATUS": "통화 상태 조회"
+    },
+    "모바일/문자": {
+      "MOBILE_SMS_SEND": "문자 전송 (승인 필수)",
+      "MOBILE_SMS_READ": "문자 읽기 (승인 필수)"
+    },
+    "모바일/메신저": {
+      "MOBILE_MESSENGER_SEND": "메신저 메시지 전송 (승인 필수)",
+      "MOBILE_MESSENGER_READ": "메신저 메시지 읽기 (승인 필수)"
+    },
+    "모바일/앱제어": {
+      "MOBILE_APP_LAUNCH": "모바일 앱 실행",
+      "MOBILE_APP_FOCUS": "모바일 앱 전환",
+      "MOBILE_APP_ACTION": "Accessibility 기반 앱 내 액션"
+    },
+    "모바일/알림": {
+      "MOBILE_NOTIFICATION_READ": "알림 조회",
+      "MOBILE_NOTIFICATION_DISMISS": "알림 해제"
+    },
+    "모바일/시스템": {
+      "MOBILE_DEVICE_STATUS": "디바이스 상태 조회 (배터리, 연결 등)",
+      "MOBILE_CLIPBOARD_SYNC": "클립보드 동기화"
     }
   },
 
