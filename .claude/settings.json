@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_excalidraw-mcp__read_me",
+      "mcp__claude_ai_excalidraw-mcp__create_view",
+      "Bash(py --version)",
+      "Bash(python .claude/fix_headers.py)",
+      "Bash(python -c \":*)",
+      "Bash(python .claude/fix_headers2.py)",
+      "Bash(python .claude/fix_headers3.py)",
+      "Read(//c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\ejdnj\\.claude\\projects\\c--Users-ejdnj-OneDrive-Desktop-GitHub-AI-JARVIS-Orchestration-OS",
+      "c:\\Users\\ejdnj\\OneDrive\\Desktop\\GitHub\\AI-JARVIS-Orchestration-OS\\.claude"
+    ]
+  }
+}
