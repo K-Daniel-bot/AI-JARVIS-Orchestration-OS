@@ -6,9 +6,39 @@ import { BaseAgent } from "../base-agent.js";
 import type { AgentExecutionContext } from "../types/agent-config.js";
 import {
   ReviewInputSchema,
+  ReviewOutputSchema,
   type ReviewInput,
   type ReviewOutput,
 } from "../types/agent-io.js";
+
+// Review 에이전트 시스템 프롬프트 — 보안/품질 검토 역할 정의
+const REVIEW_SYSTEM_PROMPT = `당신은 JARVIS Orchestration OS의 Review 에이전트입니다.
+ChangeSet의 보안과 코드 품질을 검토합니다.
+
+## 10개 보안 체크리스트 (하나라도 위반 시 blocker)
+1. 시크릿 노출 (API key, 토큰, 비밀번호)
+2. 경로 순회 (Path Traversal)
+3. 원격 코드 실행 (RCE)
+4. SQL/NoSQL injection
+5. XSS
+6. 권한 상승
+7. 외부 전송/수집 (telemetry)
+8. 라이선스/서플라이체인
+9. 인증/인가 누락
+10. 에러 정보 노출
+
+## 응답 형식
+반드시 다음 JSON 형식으로만 응답:
+\`\`\`json
+{
+  "reviewId": "rev_<8자리UUID>",
+  "passed": true,
+  "blockers": [{ "file": "...", "issue": "...", "severity": "critical" }],
+  "warnings": [],
+  "securityFindings": [],
+  "approvedChangeSetId": "cs_xxx"
+}
+\`\`\``;
 
 // Review 에이전트 — ChangeSet의 보안과 코드 품질을 검토하고 승인 여부 결정
 export class ReviewAgent extends BaseAgent {
@@ -29,7 +59,52 @@ export class ReviewAgent extends BaseAgent {
 
     const { changeSet } = validationResult.value;
 
-    // 2. Phase 0 스텁 — 보안 자가 검사 결과 기반 리뷰
+    // 2. Claude API 호출 또는 스텁 폴백
+    let output: ReviewOutput;
+
+    if (this.deps.claudeClient) {
+      // Phase 2: Claude API로 실제 보안/품질 검토 수행
+      const filesSummary = [
+        ...changeSet.filesAdded.map(f => `[추가] ${f.path}\n${f.content.slice(0, 300)}`),
+        ...changeSet.filesModified.map(f => `[수정] ${f.path}\n${f.diff.slice(0, 300)}`),
+      ].join("\n\n") || "변경된 파일 없음";
+
+      const userMessage = `changeSetId: ${changeSet.changeSetId}\n보안 자가검사: ${JSON.stringify(changeSet.securitySelfCheck)}\n\n파일 요약:\n${filesSummary}`;
+
+      const claudeResult = await this.callClaudeWithJson(
+        REVIEW_SYSTEM_PROMPT,
+        userMessage,
+        ReviewOutputSchema,
+      );
+
+      if (!claudeResult.ok) {
+        // Claude 실패 시 스텁 폴백
+        console.warn(`[ReviewAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
+        output = this.buildStubOutput(changeSet);
+      } else {
+        output = claudeResult.value;
+      }
+    } else {
+      // claudeClient 미주입 — 스텁 폴백
+      output = this.buildStubOutput(changeSet);
+    }
+
+    // 3. 감사 로그 기록
+    const auditResult = await this.logAudit(
+      context,
+      `Review 실행: changeSet=${changeSet.changeSetId}, 통과=${output.passed}`,
+      output.passed ? "COMPLETED" : "FAILED",
+      { reviewId: output.reviewId, blockersCount: output.blockers.length, usedClaude: !!this.deps.claudeClient },
+    );
+    if (!auditResult.ok) {
+      console.warn(`[ReviewAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
+
+    return ok(output);
+  }
+
+  // 스텁 출력 생성 — Claude 미사용 시 보안 자가 검사 결과 기반 리뷰
+  private buildStubOutput(changeSet: ReviewInput["changeSet"]): ReviewOutput {
     const blockers: ReviewOutput["blockers"] = [];
 
     // ChangeSet의 보안 자가 검사 결과 확인
@@ -56,28 +131,13 @@ export class ReviewAgent extends BaseAgent {
     }
 
     const passed = blockers.length === 0;
-    const reviewId = `rev_${randomUUID().slice(0, 8)}`;
-
-    const output: ReviewOutput = {
-      reviewId,
+    return {
+      reviewId: `rev_${randomUUID().slice(0, 8)}`,
       passed,
       blockers,
       warnings: [],
       securityFindings: [],
       approvedChangeSetId: passed ? changeSet.changeSetId : undefined,
     };
-
-    // 3. 감사 로그 기록
-    const auditResult = await this.logAudit(
-      context,
-      `Review 실행: changeSet=${changeSet.changeSetId}, 통과=${passed}`,
-      passed ? "COMPLETED" : "FAILED",
-      { reviewId, blockersCount: blockers.length },
-    );
-    if (!auditResult.ok) {
-      console.warn(`[ReviewAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
-    }
-
-    return ok(output);
   }
 }
