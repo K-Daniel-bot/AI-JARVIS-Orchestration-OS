@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // 백엔드 Express API 서버로 프록시
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:3002",
         changeOrigin: true,
       },
     },

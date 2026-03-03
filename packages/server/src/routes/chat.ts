@@ -1,5 +1,6 @@
 // 채팅 API 라우트 — GET /api/chat, POST /api/chat
 import { Router, type IRouter } from "express";
+import { randomUUID } from "node:crypto";
 import { successResponse } from "./types.js";
 import { sseEmitter } from "../sse/event-emitter.js";
 
@@ -34,13 +35,13 @@ chatRouter.post("/", (req, res) => {
   };
 
   if (!content?.trim()) {
-    res.status(400).json({ success: false, data: null, error: { code: "VALIDATION_FAILED", message: "content가 비어있습니다" }, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() });
+    res.status(400).json({ success: false, data: null, error: { code: "VALIDATION_FAILED", message: "content가 비어있습니다" }, timestamp: new Date().toISOString(), requestId: randomUUID() });
     return;
   }
 
   // 사용자 메시지 저장
   const userMsg = {
-    messageId: crypto.randomUUID(),
+    messageId: randomUUID(),
     role: "USER" as const,
     content: content.trim(),
     timestamp: new Date().toISOString(),
@@ -55,7 +56,7 @@ chatRouter.post("/", (req, res) => {
 
   // Phase 0: 즉시 스텁 응답 생성 (실제 Claude API 연결은 Phase 1)
   const jarvisMsg = {
-    messageId: crypto.randomUUID(),
+    messageId: randomUUID(),
     role: "JARVIS" as const,
     content: `[Phase 0 스텁] "${content.trim()}" 요청을 받았습니다. 에이전트 파이프라인은 Phase 1에서 연결됩니다.`,
     timestamp: new Date().toISOString(),

@@ -1,6 +1,7 @@
 // JARVIS API 서버 진입점 — Express HTTP 서버 + SSE 이벤트 스트림
 import express from "express";
 import cors from "cors";
+import { randomUUID } from "node:crypto";
 import { systemRouter } from "./routes/system.js";
 import { chatRouter } from "./routes/chat.js";
 import { gatesRouter } from "./routes/gates.js";
@@ -31,12 +32,12 @@ app.use("/api/events",          eventsRouter);
 app.use("/api/emergency-stop",  emergencyRouter);
 
 // 미구현 라우트 스텁 (Phase 1에서 구현)
-app.get("/api/runs",             (_req, res) => res.json({ success: true, data: [], error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
-app.get("/api/runs/:runId",      (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
-app.post("/api/runs",            (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
-app.get("/api/evidence/:id",     (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
-app.get("/api/evidence/:id/content", (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
-app.get("/api/runs/:runId/timeline/:nodeId", (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() }));
+app.get("/api/runs",             (_req, res) => res.json({ success: true, data: [], error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
+app.get("/api/runs/:runId",      (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
+app.post("/api/runs",            (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
+app.get("/api/evidence/:id",     (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
+app.get("/api/evidence/:id/content", (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
+app.get("/api/runs/:runId/timeline/:nodeId", (_req, res) => res.json({ success: true, data: null, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() }));
 
 // 상태 확인 엔드포인트
 app.get("/health", (_req, res) => {

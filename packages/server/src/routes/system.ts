@@ -1,5 +1,6 @@
 // 시스템 상태 API 라우트 — GET /api/system/status
 import { Router, type IRouter } from "express";
+import { randomUUID } from "node:crypto";
 import type { SystemStatusDto } from "./types.js";
 
 export const systemRouter: IRouter = Router();
@@ -28,5 +29,5 @@ systemRouter.get("/status", (_req, res) => {
     riskScore: 0,
     capabilityTtlSeconds: null,
   };
-  res.json({ success: true, data: status, error: null, timestamp: new Date().toISOString(), requestId: crypto.randomUUID() });
+  res.json({ success: true, data: status, error: null, timestamp: new Date().toISOString(), requestId: randomUUID() });
 });

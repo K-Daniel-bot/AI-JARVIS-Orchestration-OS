@@ -1,5 +1,6 @@
 // 서버 라우트 공용 타입 재export — web/api/schema 와 동일한 구조 유지
 // (패키지 간 순환 의존 없이 독립적으로 타입 선언)
+import { randomUUID } from "node:crypto";
 
 export type TrustMode = "observe" | "suggest" | "semi-auto" | "full-auto";
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -55,7 +56,7 @@ export function successResponse<T>(data: T): ApiSuccessResponse<T> {
     data,
     error: null,
     timestamp: new Date().toISOString(),
-    requestId: crypto.randomUUID(),
+    requestId: randomUUID(),
   };
 }
 
@@ -66,6 +67,6 @@ export function errorResponse(code: string, message: string): ApiErrorResponse {
     data: null,
     error: { code, message },
     timestamp: new Date().toISOString(),
-    requestId: crypto.randomUUID(),
+    requestId: randomUUID(),
   };
 }

@@ -118,6 +118,11 @@ async function apiFetch<T>(
     },
   });
 
+  // HTTP 상태 코드 확인
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText} at ${path}`);
+  }
+
   const json = (await response.json()) as ApiResponse<T>;
   return json;
 }
