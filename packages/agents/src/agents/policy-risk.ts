@@ -53,12 +53,15 @@ export class PolicyRiskAgent extends BaseAgent {
 
     // 3. DENY 판정 시 즉시 에러 반환
     if (decision.outcome.status === "DENY") {
-      await this.logAudit(
+      const denyLogResult = await this.logAudit(
         context,
         `정책 거부: ${decision.outcome.humanExplanation}`,
         "DENIED",
         { decisionId: decision.decisionId, riskLevel: decision.outcome.riskLevel },
       );
+      if (!denyLogResult.ok) {
+        console.warn(`[PolicyRisk] 거부 감사 로그 기록 실패: ${denyLogResult.error.code}`);
+      }
       return err(
         createError("POLICY_DENIED", decision.outcome.humanExplanation, {
           agentId: this.config.agentId,
@@ -80,12 +83,15 @@ export class PolicyRiskAgent extends BaseAgent {
     };
 
     // 5. 감사 로그 기록
-    await this.logAudit(
+    const completeLogResult = await this.logAudit(
       context,
       `정책 판정 완료: ${decision.outcome.status} (위험도=${decision.outcome.riskLevel})`,
       "COMPLETED",
       { decisionId: decision.decisionId, riskScore: decision.outcome.riskScore },
     );
+    if (!completeLogResult.ok) {
+      console.warn(`[PolicyRisk] 완료 감사 로그 기록 실패: ${completeLogResult.error.code}`);
+    }
 
     return ok(output);
   }

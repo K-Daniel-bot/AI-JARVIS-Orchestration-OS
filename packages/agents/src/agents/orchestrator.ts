@@ -48,8 +48,8 @@ export class OrchestratorAgent extends BaseAgent {
       { rawInput: rawInput.slice(0, 200) },
     );
     if (!logResult.ok) {
-      // 감사 로그 실패는 경고로 처리하고 계속 진행
-      return ok(output);
+      // 감사 로그 실패는 경고 — 에이전트 결과는 반환하되 로그 누락 기록
+      console.warn(`[Orchestrator] 감사 로그 기록 실패: ${logResult.error.code} - ${logResult.error.message}`);
     }
 
     return ok(output);

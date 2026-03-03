@@ -3,10 +3,10 @@ name: bug-fix-review
 description: "버그 수정 리뷰 프로세스. 버그 수정 ChangeSet 리뷰, 테스트 실패→수정→재테스트 사이클에 사용."
 user-invocable: true
 ---
-
-# Bug Fix Review
+# 버그 수정 리뷰
 
 ## 사용 시점
+
 - 버그 수정 ChangeSet 리뷰
 - 테스트 실패 → 수정 → 재테스트 사이클
 - Planner가 test-build 피드백으로 수정 계획 생성 시

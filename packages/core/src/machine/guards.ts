@@ -2,32 +2,43 @@
 import { LOOP_LIMITS } from "@jarvis/shared";
 import type { JarvisMachineContext } from "./context.js";
 
+// 정책 판정 존재 여부 — policyDecision이 설정되었는지 확인
+export function hasPolicyDecision(
+  context: JarvisMachineContext,
+): boolean {
+  return context.policyDecision !== null;
+}
+
 // 정책 판정이 허용(ALLOW)인지 검증
 export function isPolicyAllow(
   context: JarvisMachineContext,
 ): boolean {
-  return context.policyDecision?.outcome.status === "ALLOW";
+  if (!context.policyDecision) return false;
+  return context.policyDecision.outcome.status === "ALLOW";
 }
 
 // 정책 판정이 조건부 허용(CONSTRAINED_ALLOW)인지 검증
 export function isPolicyConstrainedAllow(
   context: JarvisMachineContext,
 ): boolean {
-  return context.policyDecision?.outcome.status === "CONSTRAINED_ALLOW";
+  if (!context.policyDecision) return false;
+  return context.policyDecision.outcome.status === "CONSTRAINED_ALLOW";
 }
 
 // 정책 판정이 승인 필요(APPROVAL_REQUIRED)인지 검증
 export function isPolicyApprovalRequired(
   context: JarvisMachineContext,
 ): boolean {
-  return context.policyDecision?.outcome.status === "APPROVAL_REQUIRED";
+  if (!context.policyDecision) return false;
+  return context.policyDecision.outcome.status === "APPROVAL_REQUIRED";
 }
 
 // 정책 판정이 거부(DENY)인지 검증
 export function isPolicyDeny(
   context: JarvisMachineContext,
 ): boolean {
-  return context.policyDecision?.outcome.status === "DENY";
+  if (!context.policyDecision) return false;
+  return context.policyDecision.outcome.status === "DENY";
 }
 
 // 재시도 횟수가 최대 에러 한도 이내인지 검증
@@ -70,5 +81,6 @@ export function hasChangeSet(
 export function isNotCriticalRisk(
   context: JarvisMachineContext,
 ): boolean {
-  return context.policyDecision?.outcome.riskLevel !== "CRITICAL";
+  if (!context.policyDecision) return true;
+  return context.policyDecision.outcome.riskLevel !== "CRITICAL";
 }

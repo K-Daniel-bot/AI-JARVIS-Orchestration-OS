@@ -3,7 +3,9 @@
     "allow": [
       "Bash(claude:*)",
       "Bash(npm view:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__plugin_oh-my-claudecode_team__omc_run_team_start",
+      "mcp__plugin_oh-my-claudecode_team__omc_run_team_wait"
     ]
   }
 }

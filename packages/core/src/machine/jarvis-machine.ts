@@ -4,6 +4,7 @@ import {
   MACHINE_STATES,
   MACHINE_EVENTS,
   AGENT_TYPES,
+  LOOP_LIMITS,
   type AgentType,
   type PolicyDecision,
   type JarvisError,
@@ -72,7 +73,7 @@ export const jarvisMachine = setup({
     isPolicyDeny: ({ context }) =>
       context.policyDecision?.outcome.status === "DENY",
     // 재시도 가능 여부 검증
-    canRetry: ({ context }) => context.retryCount < 3,
+    canRetry: ({ context }) => context.retryCount < LOOP_LIMITS.MAX_CONSECUTIVE_ERRORS,
   },
   actions: {
     // 에이전트 할당
@@ -118,6 +119,31 @@ export const jarvisMachine = setup({
       retryCount: () => 0,
       lastTransitionAt: () => new Date().toISOString(),
     }),
+    // 정책 판정 결과 컨텍스트에 저장
+    storePolicyDecision: assign({
+      policyDecision: ({ event }) => {
+        const e = event as { decision: PolicyDecision };
+        return e.decision;
+      },
+      lastTransitionAt: () => new Date().toISOString(),
+    }),
+    // 에러 기록 및 재시도 카운트 증가
+    recordError: assign({
+      errorHistory: ({ context, event }) => {
+        const e = event as { error: JarvisError };
+        return [...context.errorHistory, e.error];
+      },
+      retryCount: ({ context }) => context.retryCount + 1,
+      lastTransitionAt: () => new Date().toISOString(),
+    }),
+    // 게이트 승인 정보 컨텍스트에 누적
+    addGateApproval: assign({
+      gateApprovals: ({ context, event }) => {
+        const e = event as { approval: GateApproval };
+        return [...context.gateApprovals, e.approval];
+      },
+      lastTransitionAt: () => new Date().toISOString(),
+    }),
   },
 }).createMachine({
   id: "jarvis",
@@ -151,7 +177,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -162,23 +189,28 @@ export const jarvisMachine = setup({
       on: {
         [MACHINE_EVENTS.ALLOW]: {
           target: MACHINE_STATES.PLANNING,
-          actions: "clearAgent",
+          // 정책 판정 결과 저장 후 에이전트 해제
+          actions: ["storePolicyDecision", "clearAgent"],
         },
         [MACHINE_EVENTS.CONSTRAINED_ALLOW]: {
           target: MACHINE_STATES.PLANNING,
-          actions: "clearAgent",
+          // 제한적 허용 판정 결과 저장 후 에이전트 해제
+          actions: ["storePolicyDecision", "clearAgent"],
         },
         [MACHINE_EVENTS.APPROVAL_REQUIRED]: {
           target: MACHINE_STATES.GATE_PLAN_APPROVAL,
-          actions: "clearAgent",
+          // 승인 요구 판정 결과 저장 후 에이전트 해제
+          actions: ["storePolicyDecision", "clearAgent"],
         },
         [MACHINE_EVENTS.DENY]: {
           target: MACHINE_STATES.DENIED,
-          actions: "clearAgent",
+          // 거부 판정 결과 저장 후 에이전트 해제
+          actions: ["storePolicyDecision", "clearAgent"],
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -188,6 +220,8 @@ export const jarvisMachine = setup({
       on: {
         [MACHINE_EVENTS.APPROVED]: {
           target: MACHINE_STATES.PLANNING,
+          // 게이트 승인 이력 기록
+          actions: "addGateApproval",
         },
         [MACHINE_EVENTS.REJECTED]: {
           target: MACHINE_STATES.DENIED,
@@ -219,7 +253,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -229,6 +264,8 @@ export const jarvisMachine = setup({
       on: {
         [MACHINE_EVENTS.APPROVED]: {
           target: MACHINE_STATES.CODE_GENERATION,
+          // 게이트 승인 이력 기록
+          actions: "addGateApproval",
         },
         [MACHINE_EVENTS.REJECTED]: {
           target: MACHINE_STATES.DENIED,
@@ -246,7 +283,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -259,13 +297,22 @@ export const jarvisMachine = setup({
           target: MACHINE_STATES.GATE_APPLY_CHANGES,
           actions: "clearAgent",
         },
-        [MACHINE_EVENTS.REVIEW_BLOCKERS]: {
-          target: MACHINE_STATES.PLANNING,
-          actions: "clearAgent",
-        },
+        // 리뷰 블로커 발견 시 — 재시도 가능하면 PLANNING, 한계 초과 시 ERROR_RECOVERY
+        [MACHINE_EVENTS.REVIEW_BLOCKERS]: [
+          {
+            target: MACHINE_STATES.PLANNING,
+            guard: "canRetry",
+            actions: ["recordError", "clearAgent"],
+          },
+          {
+            target: MACHINE_STATES.ERROR_RECOVERY,
+            actions: ["recordError", "clearAgent"],
+          },
+        ],
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -275,6 +322,8 @@ export const jarvisMachine = setup({
       on: {
         [MACHINE_EVENTS.APPROVED]: {
           target: MACHINE_STATES.APPLY_CHANGES,
+          // 게이트 승인 이력 기록
+          actions: "addGateApproval",
         },
         [MACHINE_EVENTS.REJECTED]: {
           target: MACHINE_STATES.DENIED,
@@ -292,7 +341,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.APPLY_FAILED]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -305,13 +355,22 @@ export const jarvisMachine = setup({
           target: MACHINE_STATES.GATE_DEPLOY,
           actions: "clearAgent",
         },
-        [MACHINE_EVENTS.TEST_FAIL]: {
-          target: MACHINE_STATES.PLANNING,
-          actions: "clearAgent",
-        },
+        // 테스트 실패 시 — 재시도 가능하면 PLANNING, 한계 초과 시 ERROR_RECOVERY
+        [MACHINE_EVENTS.TEST_FAIL]: [
+          {
+            target: MACHINE_STATES.PLANNING,
+            guard: "canRetry",
+            actions: ["recordError", "clearAgent"],
+          },
+          {
+            target: MACHINE_STATES.ERROR_RECOVERY,
+            actions: ["recordError", "clearAgent"],
+          },
+        ],
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -321,6 +380,8 @@ export const jarvisMachine = setup({
       on: {
         [MACHINE_EVENTS.APPROVED]: {
           target: MACHINE_STATES.DEPLOY_EXECUTE,
+          // 게이트 승인 이력 기록
+          actions: "addGateApproval",
         },
         [MACHINE_EVENTS.SKIPPED]: {
           target: MACHINE_STATES.COMPLETED,
@@ -341,7 +402,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },
@@ -398,7 +460,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.MOBILE_ACTION_FAILED]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 모바일 액션 실패 에러 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
         [MACHINE_EVENTS.MOBILE_DEVICE_DISCONNECTED]: {
           target: MACHINE_STATES.AWAITING_USER_INPUT,
@@ -406,7 +469,8 @@ export const jarvisMachine = setup({
         },
         [MACHINE_EVENTS.ERROR]: {
           target: MACHINE_STATES.ERROR_RECOVERY,
-          actions: "clearAgent",
+          // 에러 정보 기록 후 에이전트 해제
+          actions: ["recordError", "clearAgent"],
         },
       },
     },

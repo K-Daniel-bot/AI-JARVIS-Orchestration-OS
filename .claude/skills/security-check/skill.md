@@ -3,10 +3,10 @@ name: security-check
 description: "보안 감사 실행. Gate L2 전 또는 온디맨드 보안 체크에 사용."
 user-invocable: true
 ---
-
-# Security Check
+# 보안 검색
 
 ## 사용 시점
+
 - Gate L2 (변경 승인) 전 보안 감사
 - 새 의존성 추가 시 리뷰
 - 인증/보안 관련 코드 수정 시

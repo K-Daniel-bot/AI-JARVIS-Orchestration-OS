@@ -31,12 +31,15 @@ export class ExecutorAgent extends BaseAgent {
 
     // 2. Capability Token 존재 여부 확인 — 토큰 없이 OS 조작 불가
     if (capabilityToken === undefined) {
-      await this.logAudit(
+      const denyAudit = await this.logAudit(
         context,
         `Executor 거부: Capability Token 누락 (action=${actionType})`,
         "DENIED",
         { actionType, capabilityTokenId },
       );
+      if (!denyAudit.ok) {
+        console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${denyAudit.error.message}`);
+      }
       return err(
         createError("CAPABILITY_EXPIRED", "Capability Token이 제공되지 않았습니다", {
           agentId: this.config.agentId,
@@ -48,12 +51,15 @@ export class ExecutorAgent extends BaseAgent {
 
     // 3. Capability Token 상태 확인
     if (capabilityToken.status !== "ACTIVE") {
-      await this.logAudit(
+      const statusAudit = await this.logAudit(
         context,
         `Executor 거부: Token 상태 비활성 (status=${capabilityToken.status})`,
         "DENIED",
         { tokenId: capabilityToken.tokenId, status: capabilityToken.status },
       );
+      if (!statusAudit.ok) {
+        console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${statusAudit.error.message}`);
+      }
       return err(
         createError("CAPABILITY_CONSUMED", `Capability Token 상태가 유효하지 않습니다: ${capabilityToken.status}`, {
           agentId: this.config.agentId,
@@ -76,12 +82,15 @@ export class ExecutorAgent extends BaseAgent {
     };
 
     // 5. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Executor 실행: action=${actionType}, token=${capabilityToken.tokenId}`,
       "COMPLETED",
       { actionId, actionType, tokenId: capabilityToken.tokenId },
     );
+    if (!auditResult.ok) {
+      console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

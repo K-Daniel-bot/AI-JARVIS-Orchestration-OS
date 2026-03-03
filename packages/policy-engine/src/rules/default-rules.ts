@@ -206,5 +206,5 @@ export const DEFAULT_EXEC_CONSTRAINTS = {
 export const DEFAULT_NETWORK_CONSTRAINTS = {
   allowDomains: ["*.github.com", "*.npmjs.org", "*.anthropic.com"] as readonly string[],
   denyDomains: [] as readonly string[],
-  default: "ALLOW" as const,
+  default: "DENY" as const,
 } as const;

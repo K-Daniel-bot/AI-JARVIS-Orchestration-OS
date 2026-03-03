@@ -49,7 +49,10 @@ export class AuditStore {
     transaction();
   }
 
-  // 감사 로그 엔트리 추가 (해시 체인 자동 갱신)
+  // 최대 엔트리 크기 (1MB)
+  private static readonly MAX_ENTRY_SIZE = 1024 * 1024;
+
+  // 감사 로그 엔트리 추가 (해시 체인 자동 갱신, 트랜잭션으로 원자성 보장)
   append(
     entry: Omit<AuditEntry, "integrity">,
   ): Result<AuditEntry, JarvisError> {
@@ -73,16 +76,27 @@ export class AuditStore {
         },
       };
 
-      // 이전 해시 조회 (마지막 엔트리 또는 제네시스)
-      const previousHash = this.getLastHash();
       const entryJson = JSON.stringify(finalEntry);
-      const hash = computeNextHash(entryJson, previousHash);
 
-      // SQLite에 삽입
-      const stmt = this.db.prepare(
-        "INSERT INTO audit_log (audit_id, timestamp, log_level, entry_json, hash, previous_hash) VALUES (?, ?, ?, ?, ?, ?)",
-      );
-      stmt.run(auditId, timestamp, finalEntry.logLevel, entryJson, hash, previousHash);
+      // 엔트리 크기 제한 검증
+      if (entryJson.length > AuditStore.MAX_ENTRY_SIZE) {
+        return err(createError("RESOURCE_EXHAUSTED", `감사 로그 엔트리 크기 초과: ${entryJson.length} > ${AuditStore.MAX_ENTRY_SIZE}`));
+      }
+
+      // 트랜잭션으로 해시 체인 원자성 보장 (BEGIN IMMEDIATE로 동시 쓰기 시 쓰기 잠금 즉시 획득)
+      let hash = "";
+      let previousHash = "";
+
+      const transaction = this.db.transaction(() => {
+        previousHash = this.getLastHash();
+        hash = computeNextHash(entryJson, previousHash);
+
+        const stmt = this.db.prepare(
+          "INSERT INTO audit_log (audit_id, timestamp, log_level, entry_json, hash, previous_hash) VALUES (?, ?, ?, ?, ?, ?)",
+        );
+        stmt.run(auditId, timestamp, finalEntry.logLevel, entryJson, hash, previousHash);
+      });
+      transaction.immediate();
 
       // 완성된 AuditEntry 반환
       const fullEntry: AuditEntry = {
@@ -92,6 +106,13 @@ export class AuditStore {
 
       return ok(fullEntry);
     } catch (e: unknown) {
+      const msg = String(e);
+      if (msg.includes("UNIQUE constraint failed") || msg.includes("PRIMARY KEY")) {
+        return err(createError("VALIDATION_FAILED", `감사 로그 ID 중복: ${String(e)}`));
+      }
+      if (msg.includes("disk") || msg.includes("SQLITE_FULL")) {
+        return err(createError("RESOURCE_EXHAUSTED", "디스크 공간 부족으로 감사 로그 추가 실패"));
+      }
       return err(createError("INTERNAL_ERROR", `감사 로그 추가 실패: ${String(e)}`));
     }
   }
@@ -139,6 +160,12 @@ export class AuditStore {
     } catch (e: unknown) {
       return err(createError("INTERNAL_ERROR", `무결성 검증 실패: ${String(e)}`));
     }
+  }
+
+  // 엔트리 수 반환 — 삭제 감지용
+  getEntryCount(): number {
+    const row = this.db.prepare("SELECT COUNT(*) as cnt FROM audit_log").get() as { cnt: number };
+    return row.cnt;
   }
 
   // DB 연결 종료

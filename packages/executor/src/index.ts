@@ -14,7 +14,11 @@ export type {
   ActionResult,
   ExecutionTraceStatus,
   ExecutionTrace,
+  ActionCategory,
+  ActionEvidence,
 } from "./types/action-types.js";
+export { getActionCategory } from "./types/action-types.js";
+export { capabilityToActionType, actionTypeToCapability } from "./types/action-types.js";
 
 // Pre-Hook 검증
 export type { PreHookResult } from "./enforcement/pre-hook.js";

@@ -41,12 +41,15 @@ export class PlannerAgent extends BaseAgent {
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Planner 실행: ${steps.length}개 단계 생성 (정책=${policyDecisionId})`,
       "COMPLETED",
       { planId, stepCount: steps.length, intent: specOutput.intent },
     );
+    if (!auditResult.ok) {
+      console.warn(`[PlannerAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

@@ -47,7 +47,7 @@ export class CodegenAgent extends BaseAgent {
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Codegen 실행: 단계=${planStep.stepId}, 의도=${specOutput.intent}`,
       "COMPLETED",
@@ -58,6 +58,9 @@ export class CodegenAgent extends BaseAgent {
         filesModified: output.filesModified.length,
       },
     );
+    if (!auditResult.ok) {
+      console.warn(`[CodegenAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

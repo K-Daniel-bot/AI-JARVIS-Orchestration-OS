@@ -1,4 +1,6 @@
 // 도메인 특화 에러 코드 — 범용 Error 대신 구조화된 에러 사용
+import { nowISO } from "../utils/timestamp.js";
+
 export const ERROR_CODES = {
   AGENT_TIMEOUT: "AGENT_TIMEOUT",
   VALIDATION_FAILED: "VALIDATION_FAILED",
@@ -45,7 +47,7 @@ export function createError(
     message,
     agentId: options?.agentId,
     runId: options?.runId,
-    timestamp: new Date().toISOString(),
+    timestamp: nowISO(),
     context: options?.context,
   };
 }

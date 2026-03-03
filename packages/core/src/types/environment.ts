@@ -44,12 +44,22 @@ export interface FileChange {
   readonly diff: string;
 }
 
+// 리뷰 이슈 항목 — 블로커 또는 경고의 상세 정보
+export interface ReviewIssue {
+  readonly id: string;
+  readonly severity: "critical" | "high" | "medium" | "low";
+  readonly category: "security" | "quality" | "performance" | "style";
+  readonly description: string;
+  readonly filePath: string | null;
+  readonly suggestion: string | null;
+}
+
 // 리뷰 결과 참조
 export interface ReviewRef {
   readonly reviewId: string;
   readonly passed: boolean;
-  readonly blockers: readonly string[];
-  readonly warnings: readonly string[];
+  readonly blockers: readonly ReviewIssue[];
+  readonly warnings: readonly ReviewIssue[];
 }
 
 // 테스트 결과 참조

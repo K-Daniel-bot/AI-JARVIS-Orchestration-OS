@@ -1,10 +1,10 @@
 // 실행 결과 타입 정의 — ExecutionTrace 스키마(action-api.json) 기반
-import type { ActionType } from "./action.js";
+import type { ActionType } from "./action-types.js";
 
 // 개별 액션 실행 상태
 export type ExecutionStatus =
   | "SUCCESS"
-  | "FAILURE"
+  | "FAILED"
   | "SKIPPED"
   | "DENIED"
   | "PENDING";

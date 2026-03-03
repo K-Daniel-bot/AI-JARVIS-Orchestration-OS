@@ -46,6 +46,7 @@ export type {
   PlanStep,
   ChangeSetRef,
   FileChange,
+  ReviewIssue,
   ReviewRef,
   TestResultRef,
 } from "./types/environment.js";

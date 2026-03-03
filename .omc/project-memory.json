@@ -46,10 +46,166 @@
   },
   "hotPaths": [
     {
+      "path": "",
+      "accessCount": 62,
+      "lastAccessed": 1772454721746,
+      "type": "directory"
+    },
+    {
+      "path": "packages/shared/src/types/result.ts",
+      "accessCount": 17,
+      "lastAccessed": 1772454705572,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/errors.ts",
+      "accessCount": 17,
+      "lastAccessed": 1772454729825,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/agent.ts",
+      "accessCount": 14,
+      "lastAccessed": 1772454701689,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/policy.ts",
+      "accessCount": 14,
+      "lastAccessed": 1772454702530,
+      "type": "file"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "accessCount": 14,
+      "lastAccessed": 1772454719415,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/package.json",
+      "accessCount": 13,
+      "lastAccessed": 1772454575020,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "accessCount": 13,
+      "lastAccessed": 1772454693685,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/utils/id.ts",
+      "accessCount": 12,
+      "lastAccessed": 1772454565069,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/audit.ts",
+      "accessCount": 12,
+      "lastAccessed": 1772454816753,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/utils/timestamp.ts",
+      "accessCount": 11,
+      "lastAccessed": 1772454693800,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/constants.ts",
+      "accessCount": 11,
+      "lastAccessed": 1772454705096,
+      "type": "file"
+    },
+    {
       "path": ".claude/skills",
       "accessCount": 7,
       "lastAccessed": 1772441629068,
       "type": "directory"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "accessCount": 7,
+      "lastAccessed": 1772452399526,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "accessCount": 7,
+      "lastAccessed": 1772454575299,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/message.ts",
+      "accessCount": 7,
+      "lastAccessed": 1772454703630,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/types/state-machine.ts",
+      "accessCount": 6,
+      "lastAccessed": 1772454450502,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/utils/hash.ts",
+      "accessCount": 6,
+      "lastAccessed": 1772454565648,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 6,
+      "lastAccessed": 1772454582038,
+      "type": "file"
+    },
+    {
+      "path": "packages/core/package.json",
+      "accessCount": 6,
+      "lastAccessed": 1772454711256,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/schemas/audit.schema.ts",
+      "accessCount": 5,
+      "lastAccessed": 1772453853281,
+      "type": "file"
+    },
+    {
+      "path": ".claude/roadmap.md",
+      "accessCount": 5,
+      "lastAccessed": 1772454321633,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/schemas/policy.schema.ts",
+      "accessCount": 5,
+      "lastAccessed": 1772454466701,
+      "type": "file"
+    },
+    {
+      "path": "packages/core/src/machine/context.ts",
+      "accessCount": 5,
+      "lastAccessed": 1772454683251,
+      "type": "file"
+    },
+    {
+      "path": "packages/core/tsconfig.json",
+      "accessCount": 5,
+      "lastAccessed": 1772454711446,
+      "type": "file"
+    },
+    {
+      "path": "packages/core/src/types/environment.ts",
+      "accessCount": 4,
+      "lastAccessed": 1772454466236,
+      "type": "file"
+    },
+    {
+      "path": "packages/policy-engine/package.json",
+      "accessCount": 4,
+      "lastAccessed": 1772454684231,
+      "type": "file"
     },
     {
       "path": ".claude/skills/code-review/skill.md",
@@ -67,6 +223,18 @@
       "path": ".claude/settings.json",
       "accessCount": 3,
       "lastAccessed": 1772443845730,
+      "type": "file"
+    },
+    {
+      "path": "turbo.json",
+      "accessCount": 3,
+      "lastAccessed": 1772451589318,
+      "type": "file"
+    },
+    {
+      "path": "packages/policy-engine/tsconfig.json",
+      "accessCount": 3,
+      "lastAccessed": 1772452293288,
       "type": "file"
     },
     {
@@ -88,15 +256,27 @@
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 2,
-      "lastAccessed": 1772441615129,
-      "type": "directory"
-    },
-    {
       "path": ".claude/statusline-command.sh",
       "accessCount": 2,
       "lastAccessed": 1772443845893,
+      "type": "file"
+    },
+    {
+      "path": ".claude/schemas/state-machine.json",
+      "accessCount": 2,
+      "lastAccessed": 1772450872923,
+      "type": "file"
+    },
+    {
+      "path": "packages/shared/src/schemas/message.schema.ts",
+      "accessCount": 2,
+      "lastAccessed": 1772451695517,
+      "type": "file"
+    },
+    {
+      "path": ".claude/design/architecture-deep.md",
+      "accessCount": 2,
+      "lastAccessed": 1772451825528,
       "type": "file"
     },
     {
@@ -139,6 +319,30 @@
       "path": ".claude/skills/research-analysis/skill.md",
       "accessCount": 1,
       "lastAccessed": 1772441616005,
+      "type": "file"
+    },
+    {
+      "path": ".claude/schemas/capability-token.json",
+      "accessCount": 1,
+      "lastAccessed": 1772450399188,
+      "type": "file"
+    },
+    {
+      "path": ".claude/schemas/policy-decision.json",
+      "accessCount": 1,
+      "lastAccessed": 1772450400470,
+      "type": "file"
+    },
+    {
+      "path": ".claude/schemas/audit-log.json",
+      "accessCount": 1,
+      "lastAccessed": 1772450400581,
+      "type": "file"
+    },
+    {
+      "path": ".claude/design/dependencies.md",
+      "accessCount": 1,
+      "lastAccessed": 1772450401171,
       "type": "file"
     }
   ],

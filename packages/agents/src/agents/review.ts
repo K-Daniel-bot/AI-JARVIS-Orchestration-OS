@@ -68,12 +68,15 @@ export class ReviewAgent extends BaseAgent {
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Review 실행: changeSet=${changeSet.changeSetId}, 통과=${passed}`,
       passed ? "COMPLETED" : "FAILED",
       { reviewId, blockersCount: blockers.length },
     );
+    if (!auditResult.ok) {
+      console.warn(`[ReviewAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

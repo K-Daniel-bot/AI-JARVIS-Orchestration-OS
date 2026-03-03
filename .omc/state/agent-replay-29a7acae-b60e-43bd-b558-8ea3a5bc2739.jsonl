@@ -1,0 +1,6 @@
+{"t":0,"agent":"a800b8d","agent_type":"codegen","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a35570d","agent_type":"codegen","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a35570d","agent_type":"codegen","event":"agent_stop","success":true}
+{"t":0,"agent":"a800b8d","agent_type":"codegen","event":"agent_stop","success":true}
+{"t":0,"agent":"aa1db66","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"git-commit"}

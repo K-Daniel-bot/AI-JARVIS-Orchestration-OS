@@ -32,19 +32,21 @@ export class TestBuildAgent extends BaseAgent {
     // 2. Phase 0 스텁 — 실제 테스트 실행은 Phase 1에서 Executor를 통해 수행
     const testRunId = `trun_${randomUUID().slice(0, 8)}`;
 
+    // Phase 0 스텁 — 실제 값 대신 스텁 마커 반환
+    const stubStartMs = Date.now();
     const output: TestBuildOutput = {
       testRunId,
       buildPassed: true,
       testsPassed: true,
-      totalTests: 0,
+      totalTests: -1, // -1 = Phase 0 스텁 (실제 테스트 미실행)
       failedTests: 0,
-      coveragePercent: 0,
+      coveragePercent: -1, // -1 = Phase 0 스텁 (커버리지 미측정)
       errors: [],
-      durationMs: 0,
+      durationMs: Date.now() - stubStartMs,
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `TestBuild 실행: changeSet=${changeSetId}, review=${reviewId}`,
       "COMPLETED",
@@ -54,6 +56,9 @@ export class TestBuildAgent extends BaseAgent {
         testsPassed: output.testsPassed,
       },
     );
+    if (!auditResult.ok) {
+      console.warn(`[TestBuildAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

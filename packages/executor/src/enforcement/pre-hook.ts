@@ -177,6 +177,23 @@ export function validatePreExecution(
     return err(createError(ERROR_CODES.CAPABILITY_EXPIRED, "Capability 토큰이 제공되지 않았습니다"));
   }
 
+  // maxUses 검증 — 1회용 토큰으로 다중 액션 실행 방지 (One-Time Capability 원칙)
+  if (actions.length > token.grant.maxUses) {
+    return err(
+      createError(
+        ERROR_CODES.CAPABILITY_SCOPE_MISMATCH,
+        `액션 수(${actions.length})가 토큰의 최대 허용 사용 횟수(${token.grant.maxUses})를 초과합니다`,
+        {
+          context: {
+            tokenId: token.tokenId,
+            actionCount: actions.length,
+            maxUses: token.grant.maxUses,
+          },
+        }
+      )
+    );
+  }
+
   for (const action of actions) {
     // Capability 검증
     const capResult = validateCapabilityForAction(token, action.actionType);

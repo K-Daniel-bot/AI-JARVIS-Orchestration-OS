@@ -3,10 +3,10 @@ name: build-verify
 description: "빌드-테스트-린트 파이프라인 실행. 코드 변경 후 또는 PR 전 검증에 사용."
 user-invocable: true
 ---
-
-# Build Verify
+# 빌드 확인
 
 ## 사용 시점
+
 - 코드 생성/수정 후
 - PR 생성 전
 - 의존성 변경 후

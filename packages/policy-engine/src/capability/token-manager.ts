@@ -39,6 +39,7 @@ export interface TokenManager {
   readonly issueToken: (grant: CapabilityGrant, context: TokenIssueContext) => Result<CapabilityToken, JarvisError>;
   readonly validateToken: (tokenId: string, action: TokenValidateAction) => Result<boolean, JarvisError>;
   readonly consumeToken: (tokenId: string, actionId?: string) => Result<void, JarvisError>;
+  readonly validateAndConsume: (tokenId: string, action: TokenValidateAction, actionId?: string) => Result<void, JarvisError>;
   readonly revokeToken: (tokenId: string, reason: string) => Result<void, JarvisError>;
   readonly getToken: (tokenId: string) => Result<CapabilityToken, JarvisError>;
   readonly listSessionTokens: (sessionId: string) => readonly CapabilityToken[];
@@ -137,7 +138,14 @@ export function createTokenManager(store?: TokenStore): TokenManager {
     // 만료 시간 검증
     if (isExpired(token.issuedAt, token.grant.ttlSeconds)) {
       // 저장소에서 상태를 EXPIRED로 업데이트
-      tokenStore.updateStatus(tokenId, "EXPIRED");
+      const expireResult = tokenStore.updateStatus(tokenId, "EXPIRED");
+      if (!expireResult.ok) {
+        return err(createError(
+          "INTERNAL_ERROR",
+          `토큰 만료 상태 업데이트 실패: ${tokenId}`,
+          { context: { tokenId, originalError: expireResult.error.code } },
+        ));
+      }
       return err(createError(
         "CAPABILITY_EXPIRED",
         `토큰이 TTL 만료되었습니다: ${tokenId}`,
@@ -158,7 +166,16 @@ export function createTokenManager(store?: TokenStore): TokenManager {
     const scopes = Array.isArray(token.grant.scope)
       ? token.grant.scope
       : [token.grant.scope];
-    const scopeMatch = scopes.some((s) => action.target.startsWith(s) || s === "*");
+    const scopeMatch = scopes.some((s) => {
+      if (s === "*") return true;
+      // 정확한 경로 일치 또는 경로 경계(/)에서의 접두사 일치만 허용
+      // "/project"가 "/project-backup"에 매칭되는 것을 방지
+      const normalizedScope = s.replace(/\\/g, "/");
+      const normalizedTarget = action.target.replace(/\\/g, "/");
+      return normalizedTarget === normalizedScope
+        || normalizedTarget.startsWith(normalizedScope + "/")
+        || (normalizedScope.endsWith("/") && normalizedTarget.startsWith(normalizedScope));
+    });
     if (!scopeMatch) {
       return err(createError(
         "CAPABILITY_SCOPE_MISMATCH",
@@ -193,7 +210,14 @@ export function createTokenManager(store?: TokenStore): TokenManager {
 
     // 만료 확인
     if (isExpired(token.issuedAt, token.grant.ttlSeconds)) {
-      tokenStore.updateStatus(tokenId, "EXPIRED");
+      const expireResult = tokenStore.updateStatus(tokenId, "EXPIRED");
+      if (!expireResult.ok) {
+        return err(createError(
+          "INTERNAL_ERROR",
+          `토큰 만료 상태 업데이트 실패: ${tokenId}`,
+          { context: { tokenId, originalError: expireResult.error.code } },
+        ));
+      }
       return err(createError(
         "CAPABILITY_EXPIRED",
         `토큰이 소비 전 만료되었습니다: ${tokenId}`,
@@ -214,6 +238,83 @@ export function createTokenManager(store?: TokenStore): TokenManager {
     return ok(undefined);
   }
 
+  // 토큰 검증 및 소비를 원자적으로 수행 — TOCTOU 경쟁 조건 방지
+  function validateAndConsume(
+    tokenId: string,
+    action: TokenValidateAction,
+    actionId?: string,
+  ): Result<void, JarvisError> {
+    // 1. 토큰 조회
+    const getResult = tokenStore.get(tokenId);
+    if (!getResult.ok) {
+      return err(getResult.error);
+    }
+
+    const token = getResult.value;
+
+    // 2. 상태 검증
+    if (token.status !== "ACTIVE") {
+      const errorCode = token.status === "CONSUMED" ? "CAPABILITY_CONSUMED"
+        : token.status === "REVOKED" ? "CAPABILITY_REVOKED"
+        : "CAPABILITY_EXPIRED";
+      return err(createError(
+        errorCode,
+        `토큰 상태가 유효하지 않습니다: ${token.status}`,
+        { context: { tokenId, status: token.status } },
+      ));
+    }
+
+    // 3. 만료 검증
+    if (isExpired(token.issuedAt, token.grant.ttlSeconds)) {
+      tokenStore.updateStatus(tokenId, "EXPIRED");
+      return err(createError(
+        "CAPABILITY_EXPIRED",
+        `토큰이 만료되었습니다: ${tokenId}`,
+        { context: { tokenId, ttlSeconds: token.grant.ttlSeconds } },
+      ));
+    }
+
+    // 4. Capability 유형 일치 검증
+    if (token.grant.cap !== action.cap) {
+      return err(createError(
+        "CAPABILITY_SCOPE_MISMATCH",
+        `토큰 Capability 유형 불일치: 기대 ${token.grant.cap}, 요청 ${action.cap}`,
+        { context: { tokenId, expected: token.grant.cap, actual: action.cap } },
+      ));
+    }
+
+    // 5. 스코프 검증 — 요청 대상이 부여된 스코프 범위 내인지 확인
+    const scopes = Array.isArray(token.grant.scope)
+      ? token.grant.scope
+      : [token.grant.scope];
+    const scopeMatch = scopes.some((s) => {
+      if (s === "*") return true;
+      const normalizedScope = s.replace(/\\/g, "/");
+      const normalizedTarget = action.target.replace(/\\/g, "/");
+      return normalizedTarget === normalizedScope
+        || normalizedTarget.startsWith(normalizedScope + "/")
+        || (normalizedScope.endsWith("/") && normalizedTarget.startsWith(normalizedScope));
+    });
+    if (!scopeMatch) {
+      return err(createError(
+        "CAPABILITY_SCOPE_MISMATCH",
+        `요청 대상이 토큰 스코프 밖입니다: ${action.target}`,
+        { context: { tokenId, target: action.target, scopes } },
+      ));
+    }
+
+    // 6. 원자적 소비 — 상태를 CONSUMED로 업데이트
+    const updateResult = tokenStore.updateStatus(tokenId, "CONSUMED", {
+      consumedAt: nowISO(),
+      consumedByAction: actionId ?? undefined,
+    });
+    if (!updateResult.ok) {
+      return err(updateResult.error);
+    }
+
+    return ok(undefined);
+  }
+
   // 토큰 취소 — 사유와 함께 토큰 즉시 무효화
   function revokeToken(
     tokenId: string,
@@ -226,8 +327,8 @@ export function createTokenManager(store?: TokenStore): TokenManager {
 
     const token = getResult.value;
 
-    // 이미 소비/취소된 토큰은 다시 취소 불가
-    if (token.status === "CONSUMED" || token.status === "REVOKED") {
+    // 이미 소비/취소/만료된 토큰은 다시 취소 불가
+    if (token.status === "CONSUMED" || token.status === "REVOKED" || token.status === "EXPIRED") {
       return err(createError(
         "VALIDATION_FAILED",
         `토큰을 취소할 수 없는 상태입니다: ${token.status}`,
@@ -263,8 +364,10 @@ export function createTokenManager(store?: TokenStore): TokenManager {
 
     for (const token of activeTokens) {
       if (isExpired(token.issuedAt, token.grant.ttlSeconds)) {
-        tokenStore.updateStatus(token.tokenId, "EXPIRED");
-        cleaned++;
+        const updateResult = tokenStore.updateStatus(token.tokenId, "EXPIRED");
+        if (updateResult.ok) {
+          cleaned++;
+        }
       }
     }
 
@@ -275,6 +378,7 @@ export function createTokenManager(store?: TokenStore): TokenManager {
     issueToken,
     validateToken,
     consumeToken,
+    validateAndConsume,
     revokeToken,
     getToken,
     listSessionTokens,

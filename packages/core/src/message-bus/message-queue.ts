@@ -13,7 +13,7 @@ export class MessageQueue {
   private readonly queues: Map<AgentType, QueueEntry[]> = new Map();
   private readonly timeoutMs: number;
 
-  constructor(timeoutMs: number = DEFAULT_TTL.MESSAGE_TIMEOUT) {
+  constructor(timeoutMs: number = DEFAULT_TTL.MESSAGE_TIMEOUT_MS) {
     this.timeoutMs = timeoutMs;
   }
 
@@ -23,23 +23,26 @@ export class MessageQueue {
     if (!this.queues.has(targetAgent)) {
       this.queues.set(targetAgent, []);
     }
-    const queue = this.queues.get(targetAgent);
-    if (queue) {
-      queue.push({
-        message,
-        enqueuedAt: Date.now(),
-      });
-    }
+    // set 직후이므로 get은 반드시 배열 반환
+    this.queues.get(targetAgent)!.push({
+      message,
+      enqueuedAt: Date.now(),
+    });
   }
 
   // 대상 에이전트 큐에서 메시지 꺼내기 (FIFO)
   dequeue(agentType: AgentType): AgentMessage | undefined {
-    const queue = this.queues.get(agentType);
-    if (!queue || queue.length === 0) {
+    const initial = this.queues.get(agentType);
+    if (!initial || initial.length === 0) {
       return undefined;
     }
     this.purgeExpired(agentType);
-    const entry = queue.shift();
+    // purgeExpired가 배열을 교체하므로 새 참조를 가져옴
+    const current = this.queues.get(agentType);
+    if (!current || current.length === 0) {
+      return undefined;
+    }
+    const entry = current.shift();
     return entry?.message;
   }
 

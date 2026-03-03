@@ -39,7 +39,8 @@
       "Bash(done)",
       "Read(//c/Users/ejdnj/OneDrive/Desktop/GitHub/AI-JARVIS-Orchestration-OS/packages/$pkg/**)",
       "Bash(xargs wc -l)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C c:\\\\Users\\\\ejdnj\\\\OneDrive\\\\Desktop\\\\GitHub\\\\AI-JARVIS-Orchestration-OS log --oneline -20)"
     ],
     "deny": [
       "Bash(rm -rf *)",

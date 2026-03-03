@@ -12,6 +12,38 @@ import { validatePostExecution } from "../enforcement/post-hook.js";
 import type { OsAbstraction } from "../os/os-abstraction.js";
 import { createOsAbstraction } from "../os/os-abstraction.js";
 
+// 검증 없이 단순 디스패치만 수행 — executeActions() 내부 루프 전용 (Pre-Hook은 배치 단위로 이미 수행)
+async function executeActionInternal(
+  action: ActionRequest,
+  os: OsAbstraction
+): Promise<Result<ActionResult, JarvisError>> {
+  const startMs = Date.now();
+
+  const dispatchResult = dispatchAction(action, os);
+  const durationMs = Date.now() - startMs;
+
+  const status: ActionResultStatus = dispatchResult.ok ? "SUCCESS" : "FAILED";
+  const output: Record<string, unknown> | null = dispatchResult.ok ? dispatchResult.value : null;
+  const error = dispatchResult.ok
+    ? null
+    : { code: dispatchResult.error.code, message: dispatchResult.error.message };
+
+  const result: ActionResult = {
+    actionId: action.actionId,
+    actionType: action.actionType,
+    status,
+    durationMs,
+    output,
+    error,
+    evidence: {
+      screenshotRef: action.evidence.captureScreenshot ? `screenshot_${action.actionId}` : null,
+      stdoutRef: action.evidence.captureStdout ? `stdout_${action.actionId}` : null,
+    },
+  };
+
+  return ok(result);
+}
+
 // 단일 액션 디스패치 — OS 추상화 레이어로 라우팅
 function dispatchAction(
   action: ActionRequest,
@@ -72,6 +104,15 @@ function dispatchAction(
       const cwd = action.params["cwd"];
       if (typeof command !== "string") {
         return err(createError(ERROR_CODES.VALIDATION_FAILED, "EXEC_RUN 파라미터 'command'가 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      // 커맨드 길이 및 위험 문자 검증
+      if (command.length > 4096) {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "EXEC_RUN 커맨드 길이가 4096자를 초과합니다", { context: { length: command.length } }));
+      }
+      const dangerousPatterns = [/;\s*rm\s+-rf\s+\//, /&&\s*rm\s+-rf/, /\|\s*sh\s*$/, /`.*`/, /\$\(.*\)/];
+      const hasDangerous = dangerousPatterns.some((p) => p.test(command));
+      if (hasDangerous) {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "EXEC_RUN 커맨드에 위험한 패턴이 포함되어 있습니다", { context: { command: command.slice(0, 100) } }));
       }
       const cwdStr = typeof cwd === "string" ? cwd : undefined;
       const result = os.executeCommand(command, cwdStr);
@@ -138,8 +179,15 @@ function dispatchAction(
 // 단일 액션 실행 — Pre-Hook 검증 → 디스패치 → ActionResult 조립
 export async function executeAction(
   action: ActionRequest,
-  os: OsAbstraction
+  os: OsAbstraction,
+  token: CapabilityToken | null = null
 ): Promise<Result<ActionResult, JarvisError>> {
+  // Pre-Hook 검증 — 단일 액션에 대한 Capability 토큰 및 경로 유효성 확인
+  const preResult = validatePreExecution([action], token);
+  if (!preResult.ok) {
+    return err(preResult.error);
+  }
+
   const startMs = Date.now();
 
   const dispatchResult = dispatchAction(action, os);
@@ -195,7 +243,8 @@ export async function executeActions(
   let traceStatus: ExecutionTrace["status"] = "SUCCESS";
 
   for (const action of actions) {
-    const actionResult = await executeAction(action, osAbstraction);
+    // 배치 Pre-Hook은 루프 진입 전에 일괄 수행 완료 — 내부 디스패치만 호출
+    const actionResult = await executeActionInternal(action, osAbstraction);
     if (!actionResult.ok) {
       return err(actionResult.error);
     }

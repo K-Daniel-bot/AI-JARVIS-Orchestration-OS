@@ -32,14 +32,31 @@ const INTENT_RISK_WEIGHTS: Record<RequestIntent, Partial<RiskDimensions>> = {
   MOBILE_ACTION: { authentication: 20, network: 15 },
 };
 
-// 카테고리와 차원 매핑
-const CATEGORY_DIMENSION_MAP: Record<string, keyof RiskDimensions> = {
+// 추가 컨텍스트 반영 보너스 — 특수 조건별 위험도 가산
+const CONTEXT_RISK_BONUSES = {
+  WEB_ACCESS: 10,
+  LOGIN_REQUIRED: 15,
+} as const;
+
+// Risk Level 분류 임계값
+const RISK_LEVEL_THRESHOLDS = {
+  LOW_MAX: 25,
+  MEDIUM_MAX: 50,
+  HIGH_MAX: 75,
+} as const;
+
+// DENY 규칙 매칭 시 최소 보장 점수 (CRITICAL 보장)
+const DENY_MIN_SCORE = 76;
+
+// 카테고리와 차원 매핑 — 규칙 카테고리를 위험 차원에 연결
+type RuleCategory = "fs" | "exec" | "network" | "auth" | "destructive";
+const CATEGORY_DIMENSION_MAP: Record<RuleCategory, keyof RiskDimensions> = {
   fs: "fileSystem",
   exec: "execution",
   network: "network",
   auth: "authentication",
   destructive: "destructive",
-};
+} as const;
 
 // 종합 Risk Score 계산
 export function calculateRiskScore(
@@ -68,7 +85,7 @@ export function calculateRiskScore(
     }
     processedRuleIds.add(match.rule.id);
 
-    const dimension = CATEGORY_DIMENSION_MAP[match.rule.category];
+    const dimension = CATEGORY_DIMENSION_MAP[match.rule.category as RuleCategory];
     if (dimension) {
       dimensions[dimension] = Math.min(100, dimensions[dimension] + match.rule.riskWeight);
     }
@@ -76,10 +93,10 @@ export function calculateRiskScore(
 
   // 3. 추가 컨텍스트 반영
   if (options?.requiresWebAccess) {
-    dimensions.network = Math.min(100, dimensions.network + 10);
+    dimensions.network = Math.min(100, dimensions.network + CONTEXT_RISK_BONUSES.WEB_ACCESS);
   }
   if (options?.requiresLogin) {
-    dimensions.authentication = Math.min(100, dimensions.authentication + 15);
+    dimensions.authentication = Math.min(100, dimensions.authentication + CONTEXT_RISK_BONUSES.LOGIN_REQUIRED);
   }
 
   // 4. 각 차원을 0-100 범위로 클램핑
@@ -104,7 +121,7 @@ export function calculateRiskScore(
 
   // 6. DENY 규칙이 있으면 최소 점수를 76으로 (CRITICAL 보장)
   if (matchResult.hasDeny) {
-    totalScore = Math.max(76, totalScore);
+    totalScore = Math.max(DENY_MIN_SCORE, totalScore);
   }
 
   // 7. 가장 높은 차원 결정
@@ -119,9 +136,9 @@ export function calculateRiskScore(
 
 // Risk Level 결정 — 점수 범위에 따른 레벨 분류
 export function determineRiskLevel(score: number): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
-  if (score <= 25) return "LOW";
-  if (score <= 50) return "MEDIUM";
-  if (score <= 75) return "HIGH";
+  if (score <= RISK_LEVEL_THRESHOLDS.LOW_MAX) return "LOW";
+  if (score <= RISK_LEVEL_THRESHOLDS.MEDIUM_MAX) return "MEDIUM";
+  if (score <= RISK_LEVEL_THRESHOLDS.HIGH_MAX) return "HIGH";
   return "CRITICAL";
 }
 

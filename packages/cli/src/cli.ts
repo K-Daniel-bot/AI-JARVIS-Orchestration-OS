@@ -26,7 +26,15 @@ export function parseArgs(argv: readonly string[]): Result<ParsedArgs, JarvisErr
 
   const firstArg = args[0];
 
-  if (args.length === 0 || firstArg === undefined || firstArg === "--help" || firstArg === "-h") {
+  if (firstArg === "--help" || firstArg === "-h") {
+    return ok({
+      command: "version" as CommandName,
+      args: ["--help"],
+      global: { ...createDefaultGlobal(), help: true },
+    });
+  }
+
+  if (args.length === 0 || firstArg === undefined) {
     return ok({
       command: "version" as CommandName,
       args: [],
@@ -77,7 +85,9 @@ export function executeCommand(parsed: ParsedArgs): Result<CommandResult, Jarvis
       });
 
     case "stop":
+      // --session 또는 -s 옵션으로 세션 ID를 전달
       return executeStopCommand({
+        sessionId: extractOption(parsed.args, "--session") ?? extractOption(parsed.args, "-s"),
         force: parsed.args.includes("--force") || parsed.args.includes("-f"),
         reason: extractOption(parsed.args, "--reason"),
       });
@@ -92,6 +102,29 @@ export function executeCommand(parsed: ParsedArgs): Result<CommandResult, Jarvis
       });
 
     case "version":
+      // --help 플래그가 설정된 경우 사용법 출력
+      if (parsed.global.help) {
+        return ok({
+          success: true,
+          exitCode: 0,
+          message: [
+            "사용법: jarvis <명령어> [옵션]",
+            "",
+            "명령어:",
+            "  run <요청>     — AI 에이전트 실행",
+            "  status         — 현재 상태 조회",
+            "  stop           — 실행 중단",
+            "  audit          — 감사 로그 조회",
+            "  version        — 버전 정보",
+            "",
+            "옵션:",
+            "  --help, -h     — 도움말 표시",
+            "  --json         — JSON 형식 출력",
+            "  --quiet        — 최소 출력",
+          ].join("\n"),
+          data: undefined,
+        });
+      }
       return executeVersionCommand(
         parsed.args.includes("--verbose") || parsed.args.includes("-v"),
       );
@@ -121,4 +154,27 @@ function createDefaultGlobal(): GlobalOptions {
     quiet: false,
     json: false,
   };
+}
+
+// CLI 메인 진입점 — process.argv를 파싱하여 명령어를 실행하고 종료 코드를 설정
+export function main(): void {
+  const parseResult = parseArgs(process.argv);
+  if (!parseResult.ok) {
+    console.error(`오류: ${parseResult.error.message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const cmdResult = executeCommand(parseResult.value);
+  if (!cmdResult.ok) {
+    console.error(`오류: ${cmdResult.error.message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (cmdResult.value.message) {
+    console.log(cmdResult.value.message);
+  }
+
+  process.exitCode = cmdResult.value.exitCode;
 }

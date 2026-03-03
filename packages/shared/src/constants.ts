@@ -14,11 +14,14 @@ export const LOOP_LIMITS = {
   MAX_CONSECUTIVE_ERRORS: 3,
 } as const;
 
-// 기본 TTL 설정 (초)
+// 기본 TTL 설정 — 단위가 다르므로 키 이름에 단위를 명시
 export const DEFAULT_TTL = {
-  CAPABILITY_TOKEN: 900,
-  MESSAGE_TIMEOUT: 60000,
-  SESSION_TIMEOUT: 3600,
+  // Capability Token 유효 시간 (초 단위)
+  CAPABILITY_TOKEN_SECONDS: 900,
+  // 메시지 큐 타임아웃 (밀리초 단위, 60초 = 60,000ms)
+  MESSAGE_TIMEOUT_MS: 60_000,
+  // 세션 타임아웃 (초 단위)
+  SESSION_TIMEOUT_SECONDS: 3600,
 } as const;
 
 // Redaction 패턴 (민감 정보 마스킹)

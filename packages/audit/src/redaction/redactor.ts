@@ -16,6 +16,10 @@ const REDACTION_PATTERNS: ReadonlyMap<RedactionCategory, readonly RegExp[]> = ne
     /AKIA[0-9A-Z]{16}/g,
     // OpenAI / Anthropic API 키
     /sk-[a-zA-Z0-9_-]{20,}/g,
+    // GitHub 토큰 (ghp_, gho_, ghu_, ghs_, ghr_)
+    /gh[pousr]_[a-zA-Z0-9]{36,}/g,
+    // PEM 형식 비밀 키 블록 (ReDoS 방지: 최대 8KB 길이 제한, RSA-4096 기준 약 3.2KB)
+    /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]{0,8192}?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----/g,
     // 일반 API 키 패턴 (key=value, api_key=value)
     /(?:api[_-]?key|secret[_-]?key|access[_-]?key)\s*[:=]\s*["']?[a-zA-Z0-9_\-/.]{8,}["']?/gi,
   ]],

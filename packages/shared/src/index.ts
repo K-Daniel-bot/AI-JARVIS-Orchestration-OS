@@ -91,6 +91,16 @@ export {
   CapabilityGrantSchema,
   PolicyOutcomeSchema,
   CapabilityTokenStatusSchema,
+  GateTypeSchema,
+  GateLevelSchema,
+  PolicySubjectSchema,
+  PolicyRequestSchema,
+  FsConstraintsSchema,
+  ExecConstraintsSchema,
+  NetworkConstraintsSchema,
+  PolicyConstraintsSchema,
+  PolicyDecisionSchema,
+  CapabilityTokenSchema,
 } from "./schemas/policy.schema.js";
 
 export {

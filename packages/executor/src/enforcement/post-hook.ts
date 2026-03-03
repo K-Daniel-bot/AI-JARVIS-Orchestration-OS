@@ -3,6 +3,9 @@ import type { Result, JarvisError } from "@jarvis/shared";
 import { ok, err, createError, ERROR_CODES } from "@jarvis/shared";
 import type { ActionRequest, ActionResult } from "../types/action-types.js";
 
+// 단일 액션 실행 시간 상한 (5분) — 이를 초과하면 이상 징후
+const MAX_ACTION_DURATION_MS = 300_000;
+
 // Post-Hook 검증 결과
 export interface PostHookResult {
   readonly passed: boolean;
@@ -45,6 +48,24 @@ export function validateExecutionResult(
     return err(
       createError(ERROR_CODES.INTERNAL_ERROR, "실행 시간이 유효하지 않습니다 (음수)", {
         context: { actionId: action.actionId, durationMs: result.durationMs },
+      })
+    );
+  }
+
+  // 실행 시간이 상한을 초과한 경우 경고 (이상 징후 탐지)
+  if (result.durationMs > MAX_ACTION_DURATION_MS) {
+    return err(
+      createError(ERROR_CODES.VALIDATION_FAILED, "실행 시간이 상한을 초과하였습니다", {
+        context: { actionId: action.actionId, durationMs: result.durationMs, maxMs: MAX_ACTION_DURATION_MS },
+      })
+    );
+  }
+
+  // 성공 상태인데 출력이 없으면 이상 징후
+  if (result.status === "SUCCESS" && result.output === null) {
+    return err(
+      createError(ERROR_CODES.VALIDATION_FAILED, "성공 상태이지만 출력이 없습니다", {
+        context: { actionId: action.actionId, actionType: action.actionType },
       })
     );
   }

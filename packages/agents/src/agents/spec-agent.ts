@@ -45,12 +45,15 @@ export class SpecAgent extends BaseAgent {
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Spec 에이전트 실행: 의도=${intent}`,
       "COMPLETED",
       { intent, targetsCount: targets.length },
     );
+    if (!auditResult.ok) {
+      console.warn(`[SpecAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

@@ -41,12 +41,15 @@ export class RollbackAgent extends BaseAgent {
     };
 
     // 3. 감사 로그 기록
-    await this.logAudit(
+    const auditResult = await this.logAudit(
       context,
       `Rollback 에이전트 실행: runId=${runId}, reason=${reason}`,
       "ROLLED_BACK",
       { rollbackId, targetRunId: runId },
     );
+    if (!auditResult.ok) {
+      console.warn(`[RollbackAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+    }
 
     return ok(output);
   }

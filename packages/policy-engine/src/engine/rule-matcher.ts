@@ -78,14 +78,16 @@ export function matchTargets(
     }
   }
 
-  // 총 위험 가중치 계산 (중복 규칙 제거)
-  const uniqueRuleIds = new Set(allMatches.map((m) => m.rule.id));
-  let totalRiskWeight = 0;
+  // 총 위험 가중치 계산 — 동일 규칙 ID는 한 번만 합산
+  const uniqueRules = new Map<string, number>();
   for (const match of allMatches) {
-    if (uniqueRuleIds.has(match.rule.id)) {
-      totalRiskWeight += match.rule.riskWeight;
-      uniqueRuleIds.delete(match.rule.id);
+    if (!uniqueRules.has(match.rule.id)) {
+      uniqueRules.set(match.rule.id, match.rule.riskWeight);
     }
+  }
+  let totalRiskWeight = 0;
+  for (const weight of uniqueRules.values()) {
+    totalRiskWeight += weight;
   }
 
   return {

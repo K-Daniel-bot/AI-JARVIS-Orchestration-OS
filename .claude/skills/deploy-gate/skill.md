@@ -3,10 +3,10 @@ name: deploy-gate
 description: "배포 전 통합 검증. Gate L2/L3 체크포인트에서 변경 적용 전 사용."
 user-invocable: true
 ---
-
-# Deploy Gate
+# 게이트 배포
 
 ## 사용 시점
+
 - ChangeSet을 코드베이스에 적용하기 전
 - PR 머지 전
 - Gate L2 (변경 승인) 및 Gate L3 (배포 승인) 체크포인트

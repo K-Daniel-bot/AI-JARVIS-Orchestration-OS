@@ -3,7 +3,7 @@ name: refactoring
 description: "코드 리팩토링 계획 및 실행. 기능 변경 없이 코드 구조/가독성/유지보수성 개선에 사용."
 user-invocable: true
 ---
-# Refactoring
+# 리팩토링
 
 ## 사용 시점
 

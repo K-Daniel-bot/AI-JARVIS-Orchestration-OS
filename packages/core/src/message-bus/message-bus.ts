@@ -18,7 +18,6 @@ interface Subscription {
 export class MessageBus {
   private readonly subscriptions: Map<AgentType, Subscription> = new Map();
   private readonly queue: MessageQueue;
-  private processing = false;
 
   constructor(timeoutMs?: number) {
     this.queue = new MessageQueue(timeoutMs);
@@ -82,25 +81,29 @@ export class MessageBus {
     return ok(undefined);
   }
 
-  // 대상 에이전트 큐 처리
-  private async processQueue(agentType: AgentType): Promise<void> {
-    if (this.processing) {
-      return;
-    }
-    this.processing = true;
+  // 대상 에이전트 큐 처리 — Promise 체인으로 순서 보장 + 핸들러 에러 격리
+  private readonly processingPromises: Map<AgentType, Promise<void>> = new Map();
 
-    try {
+  private async processQueue(agentType: AgentType): Promise<void> {
+    // 이전 처리가 진행 중이면 체인에 연결하여 순차 실행 보장
+    const previous = this.processingPromises.get(agentType) ?? Promise.resolve();
+    const current = previous.then(async () => {
       let message = this.queue.dequeue(agentType);
       while (message !== undefined) {
         const subscription = this.subscriptions.get(agentType);
         if (subscription) {
-          await subscription.handler(message);
+          try {
+            await subscription.handler(message);
+          } catch (handlerError: unknown) {
+            // 핸들러 에러를 격리하되 로깅 — 한 메시지 실패가 나머지 큐 처리를 막지 않음
+            console.error(`[MessageBus] ${agentType} 핸들러 에러:`, handlerError);
+          }
         }
         message = this.queue.dequeue(agentType);
       }
-    } finally {
-      this.processing = false;
-    }
+    });
+    this.processingPromises.set(agentType, current);
+    await current;
   }
 
   // 구독된 에이전트 목록 반환
@@ -127,6 +130,6 @@ export class MessageBus {
   reset(): void {
     this.subscriptions.clear();
     this.queue.clearAll();
-    this.processing = false;
+    this.processingPromises.clear();
   }
 }

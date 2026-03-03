@@ -103,3 +103,64 @@ export interface ExecutionTrace {
   readonly steps: readonly ActionResult[];
   readonly redactionsApplied: readonly string[];
 }
+
+// 액션 카테고리 — 대분류
+export type ActionCategory =
+  | "FILE"
+  | "PROCESS"
+  | "APP"
+  | "BROWSER"
+  | "MOBILE";
+
+// 액션 증거 수집 설정
+export interface ActionEvidence {
+  readonly captureScreenshot: boolean;
+  readonly captureStdout: boolean;
+}
+
+// Capability 이름(dotted) → ActionType(SCREAMING_SNAKE) 변환 매핑
+const CAPABILITY_TO_ACTION: Record<string, ActionType> = {
+  "fs.read": "FS_READ",
+  "fs.write": "FS_WRITE",
+  "exec.run": "EXEC_RUN",
+  "app.launch": "APP_LAUNCH",
+  "process.kill": "PROCESS_KILL",
+  "browser.navigate": "BROWSER_OPEN_URL",
+  "browser.download": "BROWSER_DOWNLOAD",
+};
+
+// Capability 이름을 ActionType으로 변환
+export function capabilityToActionType(cap: string): ActionType | undefined {
+  return CAPABILITY_TO_ACTION[cap];
+}
+
+// ActionType을 Capability 이름으로 변환
+export function actionTypeToCapability(actionType: ActionType): string | undefined {
+  for (const [cap, at] of Object.entries(CAPABILITY_TO_ACTION)) {
+    if (at === actionType) return cap;
+  }
+  return undefined;
+}
+
+// 액션 타입별 카테고리 매핑 헬퍼
+export function getActionCategory(actionType: ActionType): ActionCategory {
+  const fsTypes: readonly FsActionType[] = [
+    "FS_READ", "FS_WRITE", "FS_LIST", "FS_MOVE", "FS_DELETE",
+  ];
+  const execTypes: readonly ExecActionType[] = [
+    "EXEC_RUN", "PROCESS_KILL",
+  ];
+  const appTypes: readonly AppActionType[] = [
+    "APP_LAUNCH", "APP_FOCUS", "WINDOW_CLICK", "WINDOW_TYPE", "WINDOW_SHORTCUT",
+  ];
+  const browserTypes: readonly BrowserActionType[] = [
+    "BROWSER_OPEN_URL", "BROWSER_CLICK", "BROWSER_TYPE",
+    "BROWSER_DOWNLOAD", "BROWSER_UPLOAD", "BROWSER_LOGIN_REQUEST",
+  ];
+
+  if ((fsTypes as readonly string[]).includes(actionType)) return "FILE";
+  if ((execTypes as readonly string[]).includes(actionType)) return "PROCESS";
+  if ((appTypes as readonly string[]).includes(actionType)) return "APP";
+  if ((browserTypes as readonly string[]).includes(actionType)) return "BROWSER";
+  return "MOBILE";
+}

@@ -16,6 +16,7 @@ import {
   createError,
   generatePolicyDecisionId,
   nowISO,
+  CapabilityTypeSchema,
 } from "@jarvis/shared";
 import { matchTargets } from "./rule-matcher.js";
 import { calculateRiskScore, determineRiskLevel } from "./risk-scorer.js";
@@ -187,24 +188,32 @@ function collectRequiredGates(
   return [...gates];
 }
 
-// 필요한 Capability 수집 — 매칭된 규칙에서 추출
+// 필요한 Capability 수집 — 매칭된 규칙에서 실제 대상 경로를 scope로 사용
 function collectRequiredCapabilities(
-  matches: readonly { readonly rule: PolicyRule }[],
+  matches: readonly { readonly rule: PolicyRule; readonly matchedTarget: string }[],
 ): readonly CapabilityGrant[] {
-  const capMap = new Map<string, PolicyRule>();
+  // capability 타입별로 실제 매칭된 대상 경로를 수집
+  const capTargets = new Map<string, Set<string>>();
 
   for (const match of matches) {
     if (match.rule.requiredCapability) {
-      // 중복 제거: 같은 capability 타입이면 마지막 규칙 사용
-      capMap.set(match.rule.requiredCapability, match.rule);
+      const cap = match.rule.requiredCapability;
+      if (!capTargets.has(cap)) {
+        capTargets.set(cap, new Set());
+      }
+      capTargets.get(cap)!.add(match.matchedTarget);
     }
   }
 
   const capabilities: CapabilityGrant[] = [];
-  for (const [cap, rule] of capMap) {
+  for (const [cap, targets] of capTargets) {
+    const parsed = CapabilityTypeSchema.safeParse(cap);
+    if (!parsed.success) {
+      continue; // 유효하지 않은 capability 타입은 건너뜀
+    }
     capabilities.push({
-      cap: cap as CapabilityGrant["cap"],
-      scope: rule.patterns as unknown as readonly string[],
+      cap: parsed.data,
+      scope: [...targets],
       ttlSeconds: 900,
       maxUses: 1,
     });
