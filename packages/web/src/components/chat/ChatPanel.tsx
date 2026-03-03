@@ -109,6 +109,13 @@ const TRUST_MODE_LABELS: Record<TrustMode, string> = {
   "full-auto": "자동 모드",
 };
 
+// 빠른 액션 고정 정의
+const QUICK_ACTIONS = [
+  { label: "계획만", context: "plan-only" },
+  { label: "시뮬레이션", context: "simulation" },
+  { label: "실행", context: "execute" },
+] as const;
+
 // ChatPanel 본체
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
@@ -204,11 +211,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   // 빠른 액션 버튼들
-  const quickActions = [
-    { label: "계획만", context: "plan-only" },
-    { label: "시뮬레이션", context: "simulation" },
-    { label: "실행", context: "execute" },
-  ];
 
   return (
     <div style={panelStyle} role="region" aria-label="채팅 패널">
@@ -261,7 +263,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div style={inputAreaStyle}>
         {/* 빠른 액션 */}
         <div style={{ display: "flex", gap: "6px" }}>
-          {quickActions.map((action) => (
+          {QUICK_ACTIONS.map((action) => (
             <button
               key={action.context}
               style={{
