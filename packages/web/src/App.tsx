@@ -216,32 +216,38 @@ export const App: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSendMessage = useCallback(async (req: any) => {
     setChatLoading(true);
-    // 즉시 사용자 메시지 표시 (낙관적 업데이트)
-    const tempMessageId = crypto.randomUUID();
-    const tempMsg: ChatMessageDto = {
-      messageId: tempMessageId,
-      role: "USER",
-      content: req.content,
-      timestamp: new Date().toISOString(),
-      runId: run.runId === "run_mock_001" ? null : run.runId,
-      contextBadge: req.trustMode === "observe" ? "OBSERVE_ONLY" : "MAY_TRIGGER_ACTIONS",
-      isVoice: req.isVoice ?? false,
-    };
-    setMessages((prev) => [...prev, tempMsg]);
+    try {
+      // 사용자 메시지 추가 (낙관적 업데이트)
+      const userMessage: ChatMessageDto = {
+        messageId: crypto.randomUUID(),
+        role: "USER",
+        content: req.content,
+        timestamp: new Date().toISOString(),
+        runId: run.runId === "run_mock_001" ? null : run.runId,
+        contextBadge: req.trustMode === "observe" ? "OBSERVE_ONLY" : "MAY_TRIGGER_ACTIONS",
+        isVoice: req.isVoice ?? false,
+      };
+      setMessages((prev) => [...prev, userMessage]);
 
-    const result = await api.chat.send(req);
-    if (result.success && result.data) {
-      // 서버 응답으로 임시 메시지 교체 (중복 방지)
-      const responseMsg = result.data;
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.messageId !== tempMessageId);
-        return [...filtered, responseMsg];
-      });
-    } else {
-      // 실패 시 임시 메시지 제거
-      setMessages((prev) => prev.filter((m) => m.messageId !== tempMessageId));
+      // 서버에 메시지 전송 — SSE를 통해 응답이 올 때까지 기다림
+      const result = await api.chat.send(req);
+      if (!result.success) {
+        // 에러 발생 시 에러 메시지 표시
+        const errorMsg: ChatMessageDto = {
+          messageId: crypto.randomUUID(),
+          role: "SYSTEM",
+          content: `요청 실패: ${result.error?.message || "Unknown error"}`,
+          timestamp: new Date().toISOString(),
+          runId: run.runId,
+          contextBadge: "OBSERVE_ONLY",
+          isVoice: false,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
+      // SSE로 JARVIS 응답이 오면 CHAT_MESSAGE_ADDED 이벤트를 통해 추가됨
+    } finally {
+      setChatLoading(false);
     }
-    setChatLoading(false);
   }, [run.runId]);
 
   // Gate 승인
