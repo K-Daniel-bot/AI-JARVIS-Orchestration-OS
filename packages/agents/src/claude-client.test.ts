@@ -361,3 +361,260 @@ describe("createAnthropicClient", () => {
     expect(client).toBeDefined();
   });
 });
+
+// ─── buildCreateParams 관련 테스트 (callClaude 경유 간접 검증) ────────────────
+
+describe("buildCreateParams — callClaude 경유 파라미터 검증", () => {
+  let mockClient: Anthropic;
+  let mockCreate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // 각 테스트 전 Anthropic 클라이언트 목 초기화
+    vi.useFakeTimers();
+    mockCreate = vi.fn();
+    mockClient = {
+      messages: { create: mockCreate },
+    } as unknown as Anthropic;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("thinking adaptive 옵션: temperature가 파라미터에 포함되지 않음", async () => {
+    // Arrange — adaptive 타입 thinking 옵션 설정
+    mockCreate.mockResolvedValue(buildSuccessResponse("thinking 응답"));
+    const options = {
+      ...BASE_OPTIONS,
+      thinking: { type: "adaptive" as const },
+    };
+
+    // Act
+    await callClaude(mockClient, options);
+
+    // Assert — create에 전달된 파라미터에 temperature가 없고 thinking이 있어야 함
+    const calledParams = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(calledParams).toBeDefined();
+    expect(calledParams["temperature"]).toBeUndefined();
+    expect(calledParams["thinking"]).toEqual({ type: "adaptive" });
+  });
+
+  it("thinking enabled 옵션: max_tokens가 budgetTokens + 4096 이상으로 설정됨", async () => {
+    // Arrange — enabled 타입, budgetTokens=8000 설정
+    mockCreate.mockResolvedValue(buildSuccessResponse("thinking enabled 응답"));
+    const budgetTokens = 8000;
+    const options = {
+      ...BASE_OPTIONS,
+      thinking: { type: "enabled" as const, budgetTokens },
+    };
+
+    // Act
+    await callClaude(mockClient, options);
+
+    // Assert — max_tokens >= budgetTokens + 4096 (= 12096) 이어야 함
+    const calledParams = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(calledParams).toBeDefined();
+    expect(typeof calledParams["max_tokens"]).toBe("number");
+    expect(calledParams["max_tokens"] as number).toBeGreaterThanOrEqual(budgetTokens + 4096);
+    // temperature도 없어야 함
+    expect(calledParams["temperature"]).toBeUndefined();
+  });
+
+  it("cacheControl=true: system 파라미터가 배열 형태로 전달됨", async () => {
+    // Arrange — Prompt Caching 활성화
+    mockCreate.mockResolvedValue(buildSuccessResponse("캐시 응답"));
+    const options = {
+      ...BASE_OPTIONS,
+      cacheControl: true,
+    };
+
+    // Act
+    await callClaude(mockClient, options);
+
+    // Assert — system이 배열이고 cache_control 필드 포함
+    const calledParams = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(calledParams).toBeDefined();
+    expect(Array.isArray(calledParams["system"])).toBe(true);
+    const systemArr = calledParams["system"] as Array<Record<string, unknown>>;
+    expect(systemArr[0]).toMatchObject({
+      type: "text",
+      text: BASE_OPTIONS.systemPrompt,
+      cache_control: { type: "ephemeral" },
+    });
+  });
+
+  it("cacheControl=false (기본값): system 파라미터가 문자열로 전달됨", async () => {
+    // Arrange — Prompt Caching 비활성화 (기본값)
+    mockCreate.mockResolvedValue(buildSuccessResponse("일반 응답"));
+    const options = {
+      ...BASE_OPTIONS,
+      // cacheControl 명시하지 않음 — 기본값 false
+    };
+
+    // Act
+    await callClaude(mockClient, options);
+
+    // Assert — system이 문자열이어야 함
+    const calledParams = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(calledParams).toBeDefined();
+    expect(typeof calledParams["system"]).toBe("string");
+    expect(calledParams["system"]).toBe(BASE_OPTIONS.systemPrompt);
+  });
+});
+
+// ─── Extended Thinking 응답 파싱 테스트 ──────────────────────────────────────
+
+describe("Extended Thinking 응답 파싱", () => {
+  let mockClient: Anthropic;
+  let mockCreate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // 각 테스트 전 Anthropic 클라이언트 목 초기화
+    vi.useFakeTimers();
+    mockCreate = vi.fn();
+    mockClient = {
+      messages: { create: mockCreate },
+    } as unknown as Anthropic;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("응답에 thinking 블록 포함: thinkingContent 필드가 설정됨", async () => {
+    // Arrange — thinking 블록과 text 블록이 모두 포함된 응답
+    const thinkingText = "이것은 내부 추론 과정입니다.";
+    const responseText = "최종 응답입니다.";
+    mockCreate.mockResolvedValue({
+      id: "msg_thinking_001",
+      type: "message",
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: thinkingText },
+        { type: "text", text: responseText },
+      ],
+      model: BASE_OPTIONS.model,
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: { input_tokens: 50, output_tokens: 30 },
+    } as unknown as Anthropic.Message);
+
+    // Act
+    const result = await callClaude(mockClient, BASE_OPTIONS);
+
+    // Assert — thinkingContent가 thinking 블록의 내용으로 설정되어야 함
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.thinkingContent).toBe(thinkingText);
+      expect(result.value.content).toBe(responseText);
+    }
+  });
+
+  it("응답에 thinking 블록 없음: thinkingContent가 undefined", async () => {
+    // Arrange — text 블록만 포함된 일반 응답
+    mockCreate.mockResolvedValue(buildSuccessResponse("일반 응답"));
+
+    // Act
+    const result = await callClaude(mockClient, BASE_OPTIONS);
+
+    // Assert — thinkingContent가 undefined이어야 함
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.thinkingContent).toBeUndefined();
+    }
+  });
+});
+
+// ─── Prompt Caching 토큰 정보 테스트 ─────────────────────────────────────────
+
+describe("Prompt Caching 토큰 정보", () => {
+  let mockClient: Anthropic;
+  let mockCreate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // 각 테스트 전 Anthropic 클라이언트 목 초기화
+    vi.useFakeTimers();
+    mockCreate = vi.fn();
+    mockClient = {
+      messages: { create: mockCreate },
+    } as unknown as Anthropic;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("usage에 cache_creation_input_tokens 있을 때: cacheCreationInputTokens 필드가 설정됨", async () => {
+    // Arrange — 캐시 생성 토큰이 포함된 응답
+    mockCreate.mockResolvedValue({
+      id: "msg_cache_001",
+      type: "message",
+      role: "assistant",
+      content: [{ type: "text", text: "캐시 생성 응답" }],
+      model: BASE_OPTIONS.model,
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: {
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_creation_input_tokens: 80,
+      },
+    } as unknown as Anthropic.Message);
+
+    // Act
+    const result = await callClaude(mockClient, BASE_OPTIONS);
+
+    // Assert — cacheCreationInputTokens가 usage 값과 일치해야 함
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.cacheCreationInputTokens).toBe(80);
+      expect(result.value.cacheReadInputTokens).toBeUndefined();
+    }
+  });
+
+  it("usage에 cache_read_input_tokens 있을 때: cacheReadInputTokens 필드가 설정됨", async () => {
+    // Arrange — 캐시 읽기 토큰이 포함된 응답
+    mockCreate.mockResolvedValue({
+      id: "msg_cache_002",
+      type: "message",
+      role: "assistant",
+      content: [{ type: "text", text: "캐시 읽기 응답" }],
+      model: BASE_OPTIONS.model,
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: {
+        input_tokens: 20,
+        output_tokens: 15,
+        cache_read_input_tokens: 250,
+      },
+    } as unknown as Anthropic.Message);
+
+    // Act
+    const result = await callClaude(mockClient, BASE_OPTIONS);
+
+    // Assert — cacheReadInputTokens가 usage 값과 일치해야 함
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.cacheReadInputTokens).toBe(250);
+      expect(result.value.cacheCreationInputTokens).toBeUndefined();
+    }
+  });
+
+  it("캐시 토큰 정보 없을 때: cacheCreationInputTokens와 cacheReadInputTokens 모두 undefined", async () => {
+    // Arrange — 캐시 관련 필드가 없는 일반 응답
+    mockCreate.mockResolvedValue(buildSuccessResponse("일반 응답"));
+
+    // Act
+    const result = await callClaude(mockClient, BASE_OPTIONS);
+
+    // Assert — 캐시 토큰 필드가 모두 undefined이어야 함
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.cacheCreationInputTokens).toBeUndefined();
+      expect(result.value.cacheReadInputTokens).toBeUndefined();
+    }
+  });
+});

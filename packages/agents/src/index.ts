@@ -6,7 +6,7 @@ export {
   parseJsonResponse,
   createAnthropicClient,
 } from "./claude-client.js";
-export type { ClaudeCallOptions, ClaudeResponse } from "./claude-client.js";
+export type { ClaudeCallOptions, ClaudeResponse, ThinkingOption } from "./claude-client.js";
 
 // 기반 클래스
 export { BaseAgent } from "./base-agent.js";
@@ -77,3 +77,16 @@ export type {
   RollbackInput,
   RollbackOutput,
 } from "./types/agent-io.js";
+
+// Batch API 클라이언트
+export {
+  createBatch,
+  getBatchStatus,
+  getBatchResults,
+  cancelBatch,
+} from "./batch-client.js";
+export type { BatchRequest, BatchResult, BatchStatus } from "./batch-client.js";
+
+// Cost Tracker
+export { CostTracker, calculateCost, MODEL_PRICING } from "./cost-tracker.js";
+export type { CostEntry, CostSummary } from "./cost-tracker.js";

@@ -11,21 +11,26 @@ import {
   type ReviewOutput,
 } from "../types/agent-io.js";
 
-// Review 에이전트 시스템 프롬프트 — 보안/품질 검토 역할 정의
+// Review 에이전트 시스템 프롬프트 — 보안/품질 검토 역할 정의 (15개 체크리스트)
 const REVIEW_SYSTEM_PROMPT = `당신은 JARVIS Orchestration OS의 Review 에이전트입니다.
 ChangeSet의 보안과 코드 품질을 검토합니다.
 
-## 10개 보안 체크리스트 (하나라도 위반 시 blocker)
+## 15개 보안 체크리스트 (하나라도 위반 시 blocker)
 1. 시크릿 노출 (API key, 토큰, 비밀번호)
 2. 경로 순회 (Path Traversal)
 3. 원격 코드 실행 (RCE)
 4. SQL/NoSQL injection
-5. XSS
-6. 권한 상승
+5. XSS (Cross-Site Scripting)
+6. 권한 상승 (Privilege Escalation)
 7. 외부 전송/수집 (telemetry)
 8. 라이선스/서플라이체인
 9. 인증/인가 누락
 10. 에러 정보 노출
+11. SSRF (Server-Side Request Forgery)
+12. 안전하지 않은 역직렬화 (Deserialization)
+13. 로깅에 민감 데이터 포함
+14. 의존성 취약점 (known CVE)
+15. 암호화 약점 (약한 해시, 하드코딩 salt)
 
 ## 응답 형식
 반드시 다음 JSON 형식으로만 응답:
@@ -36,7 +41,12 @@ ChangeSet의 보안과 코드 품질을 검토합니다.
   "blockers": [{ "file": "...", "issue": "...", "severity": "critical" }],
   "warnings": [],
   "securityFindings": [],
-  "approvedChangeSetId": "cs_xxx"
+  "approvedChangeSetId": "cs_xxx",
+  "qualityMetrics": {
+    "complexityScore": 50,
+    "maintainabilityScore": 70,
+    "testabilityScore": 60
+  }
 }
 \`\`\``;
 
@@ -138,6 +148,12 @@ export class ReviewAgent extends BaseAgent {
       warnings: [],
       securityFindings: [],
       approvedChangeSetId: passed ? changeSet.changeSetId : undefined,
+      // 스텁 기본값 — Claude 미사용 시 중립적 품질 지표 반환
+      qualityMetrics: {
+        complexityScore: 50,
+        maintainabilityScore: 70,
+        testabilityScore: 80,
+      },
     };
   }
 }

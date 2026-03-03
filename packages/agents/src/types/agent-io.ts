@@ -78,7 +78,7 @@ export const PolicyRiskInputSchema = z.object({
   }),
 });
 
-// Policy Risk 출력 스키마 — 정책 판정 결과
+// Policy Risk 출력 스키마 — 정책 판정 결과 (Extended Thinking 심층 분석 필드 포함)
 export const PolicyRiskOutputSchema = z.object({
   decisionId: z.string(),
   status: z.enum(["ALLOW", "DENY", "APPROVAL_REQUIRED", "CONSTRAINED_ALLOW"]),
@@ -87,6 +87,10 @@ export const PolicyRiskOutputSchema = z.object({
   requiresGates: z.array(z.string()),
   requiredCapabilities: z.array(z.string()),
   humanExplanation: z.string(),
+  // Opus Extended Thinking 심층 분석 결과 — claudeClient 미주입 시 undefined
+  deepAnalysis: z.string().optional(),
+  // Opus가 조정 제안한 위험도 점수 — 원래 riskScore 이상만 반영
+  adjustedRiskScore: z.number().min(0).max(100).optional(),
 });
 
 export type PolicyRiskInput = z.infer<typeof PolicyRiskInputSchema>;
@@ -174,7 +178,7 @@ export const ReviewInputSchema = z.object({
   policyDecisionId: z.string(),
 });
 
-// Review 출력 스키마 — 검토 결과
+// Review 출력 스키마 — 검토 결과 (보안 체크리스트 15개 + 품질 지표)
 export const ReviewOutputSchema = z.object({
   reviewId: z.string(),
   passed: z.boolean(),
@@ -187,6 +191,12 @@ export const ReviewOutputSchema = z.object({
   warnings: z.array(z.string()),
   securityFindings: z.array(z.string()),
   approvedChangeSetId: z.string().optional(),
+  // 코드 품질 지표 — 복잡도, 유지보수성, 테스트 용이성 (0~100, optional)
+  qualityMetrics: z.object({
+    complexityScore: z.number().min(0).max(100),
+    maintainabilityScore: z.number().min(0).max(100),
+    testabilityScore: z.number().min(0).max(100),
+  }).optional(),
 });
 
 export type ReviewInput = z.infer<typeof ReviewInputSchema>;
@@ -202,7 +212,7 @@ export const TestBuildInputSchema = z.object({
   testCommands: z.array(z.string()).optional(),
 });
 
-// Test Build 출력 스키마 — 테스트 결과
+// Test Build 출력 스키마 — 테스트 결과 (테스트 제안 포함)
 export const TestBuildOutputSchema = z.object({
   testRunId: z.string(),
   buildPassed: z.boolean(),
@@ -212,6 +222,13 @@ export const TestBuildOutputSchema = z.object({
   coveragePercent: z.number().min(0).max(100),
   errors: z.array(z.string()),
   durationMs: z.number().nonnegative(),
+  // 추가로 작성해야 할 테스트 제안 목록 — 선택적 필드
+  suggestedTests: z.array(z.object({
+    testName: z.string(),
+    testType: z.enum(["unit", "integration", "e2e"]),
+    targetFile: z.string(),
+    description: z.string(),
+  })).optional(),
 });
 
 export type TestBuildInput = z.infer<typeof TestBuildInputSchema>;

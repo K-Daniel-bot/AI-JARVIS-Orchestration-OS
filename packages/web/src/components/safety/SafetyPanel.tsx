@@ -2,8 +2,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import type { GateDto, GateAction, GateScopeDto, AuditEntryDto, EvidenceDto, PolicyListDto } from "../../api/schema.js";
 import { GateCard } from "./GateCard.js";
-import { Badge, riskLevelToVariant } from "../common/Badge.js";
-import type { RiskLevel } from "@jarvis/shared";
 
 // 탭 타입
 type SafetyTab = "APPROVAL" | "POLICY" | "EVIDENCE" | "AUDIT";

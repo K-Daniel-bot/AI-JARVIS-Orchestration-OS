@@ -19,7 +19,7 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.39.0",
+    "@anthropic-ai/sdk": "0.52.0",
     "@jarvis/executor": "workspace:*",
     "@jarvis/shared": "workspace:*",
     "zod": "3.24.1"

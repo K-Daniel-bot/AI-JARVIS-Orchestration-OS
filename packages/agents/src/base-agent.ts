@@ -14,7 +14,7 @@ import type {
   AgentTool,
   AgentExecutionContext,
 } from "./types/agent-config.js";
-import { callClaude, parseJsonResponse } from "./claude-client.js";
+import { callClaude, parseJsonResponse, type ThinkingOption } from "./claude-client.js";
 
 // 에이전트 추상 기반 클래스 — 입력 검증, 감사 로그, 도구 권한 관리
 export abstract class BaseAgent {
@@ -148,10 +148,15 @@ export abstract class BaseAgent {
   }
 
   // Claude API 호출 + JSON 파싱 + Zod 검증 — 에이전트에서 공통 사용
+  // options 파라미터는 선택적 (하위 호환 유지)
   protected async callClaudeWithJson<T>(
     systemPrompt: string,
     userMessage: string,
     schema: z.ZodType<T>,
+    options?: {
+      thinking?: ThinkingOption;
+      cacheControl?: boolean;
+    },
   ): Promise<Result<T, JarvisError>> {
     if (!this.deps.claudeClient) {
       return err(
@@ -165,6 +170,8 @@ export abstract class BaseAgent {
       model: this.config.model,
       systemPrompt,
       userMessage,
+      thinking: options?.thinking,
+      cacheControl: options?.cacheControl,
     });
 
     if (!claudeResult.ok) {

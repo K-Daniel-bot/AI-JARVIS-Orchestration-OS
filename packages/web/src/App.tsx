@@ -67,6 +67,7 @@ export const App: React.FC = () => {
   const [connected, setConnected] = useState(false);
   const [ttlSeconds, setTtlSeconds] = useState<number | null>(null);
   const [emergencyStopOpen, setEmergencyStopOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- AgentStatusBar에서 사용 예정 (Phase 2+)
   const [agentHealth, setAgentHealth] = useState<readonly AgentHealthDto[]>([]);
   const [systemError, setSystemError] = useState<string | null>(null);
 

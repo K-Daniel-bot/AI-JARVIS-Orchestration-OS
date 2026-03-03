@@ -4,7 +4,6 @@ import { z } from "zod";
 import type { Result, JarvisError, CapabilityToken } from "@jarvis/shared";
 import type {
   BaseAgentConfig,
-  BaseAgentDependencies,
   AgentExecutionContext,
   AuditLogger,
   PolicyEvaluator,

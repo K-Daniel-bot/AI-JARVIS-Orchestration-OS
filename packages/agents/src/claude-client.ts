@@ -1,8 +1,13 @@
-// Claude API 클라이언트 래퍼 — 재시도, JSON 파싱, Zod 검증 통합
+// Claude API 클라이언트 래퍼 — 재시도, JSON 파싱, Zod 검증, Extended Thinking, Prompt Caching 통합
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { Result, JarvisError } from "@jarvis/shared";
 import { ok, err, createError } from "@jarvis/shared";
+
+// Extended Thinking 옵션 — adaptive (Opus 4.6/Sonnet 4.6) 또는 enabled (레거시)
+export type ThinkingOption =
+  | { readonly type: "adaptive" }
+  | { readonly type: "enabled"; readonly budgetTokens: number };
 
 // Claude API 호출 옵션
 export interface ClaudeCallOptions {
@@ -11,6 +16,10 @@ export interface ClaudeCallOptions {
   readonly userMessage: string;
   readonly maxTokens?: number;
   readonly temperature?: number;
+  // Phase 1: Extended Thinking 지원
+  readonly thinking?: ThinkingOption;
+  // Phase 1: Prompt Caching — system 메시지에 cache_control 적용
+  readonly cacheControl?: boolean;
 }
 
 // Claude API 응답 구조
@@ -20,6 +29,11 @@ export interface ClaudeResponse {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly stopReason: string | null;
+  // Phase 1: Extended Thinking 응답
+  readonly thinkingContent?: string;
+  // Phase 2: Prompt Caching 토큰 사용량
+  readonly cacheCreationInputTokens?: number;
+  readonly cacheReadInputTokens?: number;
 }
 
 // 재시도 가능한 HTTP 상태 코드
@@ -40,50 +54,123 @@ export function createAnthropicClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-// Claude API 호출 — 지수 백오프 재시도 (429/500/529)
-export async function callClaude(
-  client: Anthropic,
+// system 메시지 파라미터 빌드 — cacheControl 옵션에 따라 포맷 결정
+function buildSystemParam(
+  systemPrompt: string,
+  cacheControl: boolean,
+): string | Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> {
+  if (!cacheControl) {
+    return systemPrompt;
+  }
+  // Prompt Caching: cache_control 블록 포함 배열 형태로 반환
+  return [
+    {
+      type: "text" as const,
+      text: systemPrompt,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
+
+// API 요청 파라미터 빌드
+function buildCreateParams(
   options: ClaudeCallOptions,
-): Promise<Result<ClaudeResponse, JarvisError>> {
+): Record<string, unknown> {
   const {
     model,
     systemPrompt,
     userMessage,
     maxTokens = DEFAULT_MAX_TOKENS,
     temperature = DEFAULT_TEMPERATURE,
+    thinking,
+    cacheControl = false,
   } = options;
+
+  const params: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: userMessage }],
+    system: buildSystemParam(systemPrompt, cacheControl),
+  };
+
+  if (thinking) {
+    // Extended Thinking 활성화 시 temperature 사용 불가 (API 제약)
+    params["thinking"] = thinking.type === "adaptive"
+      ? { type: "adaptive" }
+      : { type: "enabled", budget_tokens: thinking.budgetTokens };
+
+    // thinking 활성화 시 max_tokens 자동 조정
+    if (thinking.type === "enabled") {
+      params["max_tokens"] = Math.max(maxTokens, thinking.budgetTokens + 4096);
+    } else {
+      params["max_tokens"] = maxTokens;
+    }
+    // temperature 제거 — thinking과 동시 사용 불가
+  } else {
+    params["max_tokens"] = maxTokens;
+    params["temperature"] = temperature;
+  }
+
+  return params;
+}
+
+// 응답에서 텍스트와 thinking 블록 추출
+function extractResponseContent(
+  response: Anthropic.Message,
+): { text: string | null; thinking: string | null } {
+  let text: string | null = null;
+  let thinking: string | null = null;
+
+  for (const block of response.content) {
+    if (block.type === "text") {
+      text = block.text;
+    } else if (block.type === "thinking" && "thinking" in block) {
+      thinking = (block as { type: "thinking"; thinking: string }).thinking;
+    }
+  }
+
+  return { text, thinking };
+}
+
+// Claude API 호출 — 지수 백오프 재시도 (429/500/529), Extended Thinking + Prompt Caching 지원
+export async function callClaude(
+  client: Anthropic,
+  options: ClaudeCallOptions,
+): Promise<Result<ClaudeResponse, JarvisError>> {
+  const params = buildCreateParams(options);
 
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await client.messages.create({
-        model,
-        max_tokens: maxTokens,
-        temperature,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API 파라미터 동적 구성
+      const response = await client.messages.create(params as any);
 
-      // 텍스트 블록 추출
-      const textBlock = response.content.find(
-        (block): block is Anthropic.TextBlock => block.type === "text",
-      );
+      const { text, thinking } = extractResponseContent(response);
 
-      if (!textBlock) {
+      if (!text) {
         return err(
           createError("INTERNAL_ERROR", "Claude 응답에 텍스트 블록이 없습니다", {
-            context: { model, stopReason: response.stop_reason },
+            context: { model: options.model, stopReason: response.stop_reason },
           }),
         );
       }
 
+      // usage에서 캐시 토큰 정보 추출
+      const usage = response.usage as unknown as Record<string, unknown>;
+
       return ok({
-        content: textBlock.text,
+        content: text,
         model: response.model,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
         stopReason: response.stop_reason,
+        thinkingContent: thinking ?? undefined,
+        cacheCreationInputTokens: typeof usage["cache_creation_input_tokens"] === "number"
+          ? usage["cache_creation_input_tokens"]
+          : undefined,
+        cacheReadInputTokens: typeof usage["cache_read_input_tokens"] === "number"
+          ? usage["cache_read_input_tokens"]
+          : undefined,
       });
     } catch (error: unknown) {
       lastError = error;
@@ -122,7 +209,7 @@ export async function callClaude(
 
   return err(
     createError("UPSTREAM_FAILURE", `Claude API 호출 실패: ${errorMessage}`, {
-      context: { model, attempts: MAX_RETRIES },
+      context: { model: options.model, attempts: MAX_RETRIES },
     }),
   );
 }
