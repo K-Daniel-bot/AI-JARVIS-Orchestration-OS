@@ -1,5 +1,7 @@
 // JarvisRuntime — 핵심 연결 레이어. XState 액터 + 에이전트 + 감사 로그 + SSE 통합
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { createActor, type AnyActorRef } from "xstate";
 import Anthropic from "@anthropic-ai/sdk";
 import { jarvisMachine } from "@jarvis/core";
@@ -103,7 +105,7 @@ function buildTimelineNode(
 // JarvisRuntime 클래스 — 서버의 핵심 싱글톤
 class JarvisRuntime {
   private auditStore: AuditStore | null = null;
-  private claudeClient: Anthropic | null = null;
+  private claudeClient: Anthropic | undefined = undefined;
   private activeRun: ActiveRun | null = null;
   private specAgent: SpecAgent | null = null;
   private plannerAgent: PlannerAgent | null = null;
@@ -147,8 +149,8 @@ class JarvisRuntime {
     const deps: BaseAgentDependencies = {
       auditLogger,
       policyEngine,
-      // Anthropic SDK 버전 차이 무시 — 런타임에서 동일 인스턴스 사용
-      claudeClient: this.claudeClient as BaseAgentDependencies["claudeClient"],
+      // SDK 버전 차이 무시 — 런타임에서 동일 인스턴스 사용
+      claudeClient: this.claudeClient as unknown as BaseAgentDependencies["claudeClient"],
     };
 
     this.specAgent = new SpecAgent(specConfig, deps);
@@ -236,10 +238,6 @@ class JarvisRuntime {
 
   // 디렉토리 존재 보장
   private ensureDirectory(filePath: string): void {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("node:fs") as typeof import("node:fs");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const path = require("node:path") as typeof import("node:path");
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
   }
 

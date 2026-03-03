@@ -29,6 +29,7 @@
     "pnpm": ">=9.0.0"
   },
   "optionalDependencies": {
-    "@esbuild/linux-x64": "0.24.2"
+    "@esbuild/linux-x64": "0.24.2",
+    "@rollup/rollup-win32-x64-msvc": "4.59.0"
   }
 }
