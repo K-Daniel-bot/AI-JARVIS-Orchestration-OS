@@ -48,6 +48,12 @@ const ACTION_TYPE_MAP: Record<string, string> = {
   "fs.write": "FS_WRITE",
   "exec.run": "EXEC_RUN",
   "app.launch": "APP_LAUNCH",
+  "app.focus": "APP_FOCUS",
+  "window.type": "WINDOW_TYPE",
+  "window.click": "WINDOW_CLICK",
+  "window.shortcut": "WINDOW_SHORTCUT",
+  "screenshot": "SCREENSHOT",
+  "clipboard.set": "CLIPBOARD_SET",
   "network.access": "BROWSER_OPEN_URL",
   "clipboard.read": "FS_READ",
   "clipboard.write": "FS_WRITE",
@@ -73,6 +79,8 @@ export class ExecutorAgent extends BaseAgent {
     }
 
     const { actionType, parameters, capabilityTokenId } = validationResult.value;
+    const actions = (validationResult.value as Record<string, unknown>)["actions"] as
+      { actionType: string; parameters: Record<string, unknown>; waitMs?: number }[] | undefined;
 
     // 2. Capability Token 존재 여부 확인 — 토큰 없이 OS 조작 불가
     if (capabilityToken === undefined) {
@@ -120,6 +128,32 @@ export class ExecutorAgent extends BaseAgent {
     const actionId = generateActionId();
     const startMs = Date.now();
     let output: ExecutorOutput;
+
+    // 멀티스텝 실행 분기 — COMPOSITE_ACTION의 steps를 순차 실행
+    if (actionType === "multi.step" && actions && actions.length > 0) {
+      output = await this.executeMultiStep(actionId, actions, startMs, capabilityToken);
+
+      // 감사 로그 기록
+      const auditResult = await this.logAudit(
+        context,
+        `Executor 멀티스텝 실행: ${actions.length}개 단계, status=${output.status}, token=${capabilityToken.tokenId}`,
+        output.status === "SUCCESS" ? "COMPLETED" : "FAILED",
+        {
+          actionId: output.actionId,
+          actionType,
+          tokenId: capabilityToken.tokenId,
+          status: output.status,
+          durationMs: output.durationMs,
+          stepCount: actions.length,
+        },
+      );
+      if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
+        console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
+      }
+
+      return ok(output);
+    }
 
     if (this.deps.claudeClient) {
       // Phase 3: Claude API로 액션 실행 최적화/검증
@@ -171,6 +205,70 @@ export class ExecutorAgent extends BaseAgent {
     return ok(output);
   }
 
+  // 멀티스텝 순차 실행 — actions 배열을 순회하며 각 스텝 실행
+  private async executeMultiStep(
+    actionId: string,
+    actions: { actionType: string; parameters: Record<string, unknown>; waitMs?: number }[],
+    startMs: number,
+    capabilityToken: CapabilityToken,
+  ): Promise<ExecutorOutput> {
+    const completedSteps: { step: number; actionType: string; status: string; durationMs: number }[] = [];
+
+    for (let i = 0; i < actions.length; i++) {
+      const step = actions[i]!;
+
+      // 스텝 간 대기 — 앱 로딩 등을 위한 지연
+      if (step.waitMs && step.waitMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, step.waitMs));
+      }
+
+      // 각 스텝을 executeDirectAction으로 실행
+      const stepStartMs = Date.now();
+      const stepResult = await this.executeDirectAction(
+        `${actionId}_step${i}`,
+        step.actionType,
+        step.parameters,
+        stepStartMs,
+        capabilityToken,
+      );
+
+      completedSteps.push({
+        step: i,
+        actionType: step.actionType,
+        status: stepResult.status,
+        durationMs: stepResult.durationMs,
+      });
+
+      // 하나라도 실패하면 즉시 중단
+      if (stepResult.status !== "SUCCESS") {
+        return {
+          actionId,
+          actionType: "multi.step",
+          status: "FAILED",
+          output: {
+            completedSteps,
+            failedStep: i,
+            totalSteps: actions.length,
+            error: stepResult.error,
+          },
+          durationMs: Date.now() - startMs,
+          error: `스텝 ${i} (${step.actionType}) 실패: ${stepResult.error ?? "알 수 없는 오류"}`,
+        };
+      }
+    }
+
+    return {
+      actionId,
+      actionType: "multi.step",
+      status: "SUCCESS",
+      output: {
+        completedSteps,
+        totalSteps: actions.length,
+      },
+      durationMs: Date.now() - startMs,
+    };
+  }
+
   // 실제 OS 명령 실행 — ActionExecutor를 통한 안전한 실행
   private async executeDirectAction(
     actionId: string,
@@ -194,7 +292,7 @@ export class ExecutorAgent extends BaseAgent {
     // ActionRequest 구조로 변환
     const actionRequest: ActionRequest = {
       actionId,
-      actionType: mappedType as any,
+      actionType: mappedType as ActionRequest["actionType"],
       params: parameters,
       requiresCapabilities: [],
       riskTags: [],

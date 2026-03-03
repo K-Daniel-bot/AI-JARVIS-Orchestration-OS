@@ -53,12 +53,21 @@ export const SpecOutputSchema = z.object({
     "NETWORK_REQUEST",
     "PROCESS_MANAGEMENT",
     "MOBILE_ACTION",
+    "COMPOSITE_ACTION",
   ]),
   targets: z.array(z.string()),
   requiresWebAccess: z.boolean(),
   requiresLogin: z.boolean(),
   clarifications: z.array(z.string()),
   ambiguities: z.array(z.string()),
+  // 복합 작업 분해 결과 — COMPOSITE_ACTION일 때 steps 배열 포함
+  steps: z.array(z.object({
+    stepIndex: z.number(),
+    actionType: z.string(),
+    parameters: z.record(z.string(), z.unknown()),
+    description: z.string(),
+    waitMs: z.number().optional(),
+  })).optional(),
 });
 
 export type SpecInput = z.infer<typeof SpecInputSchema>;
@@ -243,15 +252,28 @@ export const ExecutorInputSchema = z.object({
     "fs.write",
     "exec.run",
     "app.launch",
+    "app.focus",
+    "window.type",
+    "window.click",
+    "window.shortcut",
+    "screenshot",
+    "clipboard.set",
     "network.access",
     "clipboard.read",
     "clipboard.write",
     "browser.navigate",
     "process.kill",
+    "multi.step",
   ]),
   parameters: z.record(z.string(), z.unknown()),
   capabilityTokenId: z.string(),
   context: ExecutionContextSchema,
+  // 복합 작업 — 멀티스텝 실행을 위한 액션 배열 (multi.step 전용)
+  actions: z.array(z.object({
+    actionType: z.string(),
+    parameters: z.record(z.string(), z.unknown()),
+    waitMs: z.number().optional(),
+  })).optional(),
 });
 
 // Executor 출력 스키마 — 실행 결과

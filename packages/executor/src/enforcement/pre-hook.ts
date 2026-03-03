@@ -39,6 +39,8 @@ const ACTION_CAPABILITY_MAP: Readonly<Record<ActionType, CapabilityType>> = {
   MOBILE_NOTIFICATION_DISMISS: "mobile.notification.read",
   MOBILE_DEVICE_STATUS: "mobile.app.control",
   MOBILE_CLIPBOARD_SYNC: "clipboard.write",
+  SCREENSHOT: "app.launch",
+  CLIPBOARD_SET: "clipboard.write",
 };
 
 // 경로 탐색 공격 방어를 위한 위험 패턴
@@ -51,41 +53,31 @@ const PATH_TRAVERSAL_PATTERNS: readonly RegExp[] = [
   /~\//,
 ];
 
-// APP_LAUNCH 허용 앱 allowlist
-const ALLOWED_APPS: readonly string[] = [
-  "notepad.exe",
-  "calc.exe",
-  "explorer.exe",
-  "mspaint.exe",
-  "code.exe",
-  "cmd.exe",
-  "powershell.exe",
-  "msedge.exe",
-  "chrome.exe",
-  "firefox.exe",
-  "notepad",
-  "calc",
-  "explorer",
-  "mspaint",
-  "code",
+// EXEC_RUN 금지 명령어 denylist — 시스템 변경/파괴/권한 상승 차단
+const DENIED_COMMANDS: readonly string[] = [
+  "sudo", "runas", "regedit", "reg", "format", "mkfs",
+  "diskpart", "fdisk", "shutdown", "reboot", "halt",
+  "bash", "sh", "zsh", "csh",
+  "curl", "wget", "Invoke-WebRequest", "Set-ExecutionPolicy",
+  "net", "netsh", "sc", "bcdedit", "sfc",
 ];
 
-// EXEC_RUN 허용 명령어 allowlist
-const ALLOWED_COMMANDS: readonly string[] = [
-  "pnpm",
-  "npm",
-  "node",
-  "tsc",
-  "vitest",
-  "eslint",
-  "git",
-  "ls",
-  "cat",
-  "echo",
-  "mkdir",
-  "rm",
-  "cp",
-  "mv",
+// APP_LAUNCH 금지 앱 denylist — 시스템 설정/보안 도구 차단
+const DENIED_APPS: readonly string[] = [
+  "regedit.exe", "regedit",
+  "mmc.exe", "mmc",
+  "gpedit.msc", "secpol.msc",
+  "compmgmt.msc", "diskmgmt.msc",
+];
+
+// 파일 시스템 보호 경로 — 시스템 핵심 디렉토리 쓰기 차단
+const DENIED_PATHS: readonly string[] = [
+  "C:\\Windows\\",
+  "C:\\System\\",
+  "/System/",
+  "/usr/",
+  "/bin/",
+  "/sbin/",
 ];
 
 // Pre-Hook 검증 결과
@@ -157,10 +149,25 @@ export function validateFilePath(
     );
   }
 
+  // 시스템 보호 경로 쓰기 차단
+  if (operation === "write") {
+    const normalizedPath = path.replace(/\//g, "\\");
+    const isDeniedPath = DENIED_PATHS.some(
+      (denied) => normalizedPath.toLowerCase().startsWith(denied.toLowerCase())
+    );
+    if (isDeniedPath) {
+      return err(
+        createError(ERROR_CODES.POLICY_DENIED, `시스템 보호 경로에 쓰기가 금지됩니다: ${path}`, {
+          context: { path, operation, deniedPaths: DENIED_PATHS },
+        })
+      );
+    }
+  }
+
   return ok(true);
 }
 
-// 명령어 allowlist 검사 — EXEC_RUN 보안 제한
+// 명령어 denylist 검사 — EXEC_RUN 보안 제한 (금지 목록에 없으면 통과)
 export function validateCommand(command: string): Result<true, JarvisError> {
   if (!command || command.trim().length === 0) {
     return err(
@@ -171,14 +178,15 @@ export function validateCommand(command: string): Result<true, JarvisError> {
   }
 
   const firstToken = command.trim().split(/\s+/)[0] ?? "";
-  const isAllowed = ALLOWED_COMMANDS.some(
-    (allowed) => firstToken === allowed || firstToken.endsWith(`/${allowed}`)
+  const normalized = firstToken.toLowerCase();
+  const isDenied = DENIED_COMMANDS.some(
+    (denied) => normalized === denied.toLowerCase() || normalized.endsWith(`/${denied.toLowerCase()}`) || normalized.endsWith(`\\${denied.toLowerCase()}`)
   );
 
-  if (!isAllowed) {
+  if (isDenied) {
     return err(
-      createError(ERROR_CODES.POLICY_DENIED, `허용되지 않은 명령어입니다: ${firstToken}`, {
-        context: { command, firstToken, allowlist: ALLOWED_COMMANDS },
+      createError(ERROR_CODES.POLICY_DENIED, `금지된 명령어입니다: ${firstToken}`, {
+        context: { command, firstToken, denylist: DENIED_COMMANDS },
       })
     );
   }
@@ -186,7 +194,7 @@ export function validateCommand(command: string): Result<true, JarvisError> {
   return ok(true);
 }
 
-// 앱 이름 allowlist 검사 — APP_LAUNCH 보안 제한
+// 앱 이름 denylist 검사 — APP_LAUNCH 보안 제한 (금지 목록에 없으면 통과)
 export function validateAppName(appName: string): Result<true, JarvisError> {
   if (!appName || appName.trim().length === 0) {
     return err(
@@ -197,14 +205,14 @@ export function validateAppName(appName: string): Result<true, JarvisError> {
   }
 
   const normalized = appName.trim().toLowerCase();
-  const isAllowed = ALLOWED_APPS.some(
-    (allowed) => normalized === allowed || normalized.endsWith(`/${allowed}`) || normalized.endsWith(`\\${allowed}`)
+  const isDenied = DENIED_APPS.some(
+    (denied) => normalized === denied.toLowerCase() || normalized.endsWith(`/${denied.toLowerCase()}`) || normalized.endsWith(`\\${denied.toLowerCase()}`)
   );
 
-  if (!isAllowed) {
+  if (isDenied) {
     return err(
-      createError(ERROR_CODES.POLICY_DENIED, `허용되지 않은 앱입니다: ${appName}`, {
-        context: { appName, allowlist: ALLOWED_APPS },
+      createError(ERROR_CODES.POLICY_DENIED, `금지된 앱입니다: ${appName}`, {
+        context: { appName, denylist: DENIED_APPS },
       })
     );
   }

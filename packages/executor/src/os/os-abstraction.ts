@@ -67,6 +67,36 @@ export interface OsKillProcessResult {
   readonly success: boolean;
 }
 
+// 텍스트 입력 결과
+export interface OsTypeTextResult {
+  readonly text: string;
+  readonly method: "clipboard_paste";
+  readonly success: boolean;
+}
+
+// 윈도우 포커스 결과
+export interface OsFocusWindowResult {
+  readonly titlePattern: string;
+  readonly found: boolean;
+  readonly processName: string;
+  readonly windowTitle: string;
+}
+
+// 마우스 클릭 결과
+export interface OsClickResult {
+  readonly x: number;
+  readonly y: number;
+  readonly clicked: boolean;
+}
+
+// 스크린샷 캡처 결과
+export interface OsScreenshotResult {
+  readonly outputPath: string;
+  readonly width: number;
+  readonly height: number;
+  readonly sizeBytes: number;
+}
+
 // OS 추상화 인터페이스 — 플랫폼 독립적 OS 조작 계약
 export interface OsAbstraction {
   readonly platform: OsPlatform;
@@ -94,6 +124,18 @@ export interface OsAbstraction {
 
   // 프로세스 종료
   killProcess(pid: number, signal?: string): Result<OsKillProcessResult, JarvisError>;
+
+  // 텍스트 입력 — 클립보드 + Ctrl+V 방식
+  typeText(text: string): Result<OsTypeTextResult, JarvisError>;
+
+  // 윈도우 포커스 — 제목 패턴으로 찾아서 전면 전환
+  focusWindow(titlePattern: string): Result<OsFocusWindowResult, JarvisError>;
+
+  // 마우스 클릭 — 지정 좌표에 클릭
+  clickAt(x: number, y: number): Result<OsClickResult, JarvisError>;
+
+  // 스크린샷 캡처 — 화면 전체를 PNG로 저장
+  screenshot(outputPath: string): Result<OsScreenshotResult, JarvisError>;
 }
 
 // 현재 실행 환경의 OS 플랫폼 감지
@@ -269,6 +311,135 @@ class NodeOsAbstraction implements OsAbstraction {
       ));
     }
   }
+
+  // 텍스트 입력 — PowerShell 클립보드 + SendKeys(Ctrl+V) 방식
+  typeText(text: string): Result<OsTypeTextResult, JarvisError> {
+    try {
+      // 텍스트를 클립보드에 복사 후 Ctrl+V로 붙여넣기
+      const escaped = text.replace(/'/g, "''");
+      const psScript = `Set-Clipboard -Value '${escaped}'; Start-Sleep -Milliseconds 100; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')`;
+      execSync(`powershell -NoProfile -Command "${psScript}"`, {
+        encoding: "utf-8",
+        timeout: 10_000,
+      });
+      return ok({ text, method: "clipboard_paste" as const, success: true });
+    } catch (e) {
+      return err(createError(
+        ERROR_CODES.INTERNAL_ERROR,
+        `텍스트 입력 실패`,
+        { context: { textLength: text.length, cause: String(e) } }
+      ));
+    }
+  }
+
+  // 윈도우 포커스 — 제목 패턴으로 프로세스 찾아서 전면 전환 (Win32 API)
+  focusWindow(titlePattern: string): Result<OsFocusWindowResult, JarvisError> {
+    try {
+      const escaped = titlePattern.replace(/'/g, "''");
+      const psScript = `
+$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${escaped}*' } | Select-Object -First 1;
+if ($proc) {
+  Add-Type @'
+    using System; using System.Runtime.InteropServices;
+    public class WinAPI { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); }
+'@;
+  [WinAPI]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null;
+  Write-Output "$($proc.ProcessName)|$($proc.MainWindowTitle)";
+} else { Write-Output "NOT_FOUND" }
+`.trim().replace(/\n/g, " ");
+      const stdout = execSync(`powershell -NoProfile -Command "${psScript}"`, {
+        encoding: "utf-8",
+        timeout: 10_000,
+      }).trim();
+
+      if (stdout === "NOT_FOUND") {
+        return err(createError(
+          ERROR_CODES.INTERNAL_ERROR,
+          `윈도우를 찾을 수 없습니다: ${titlePattern}`,
+          { context: { titlePattern } }
+        ));
+      }
+
+      const parts = stdout.split("|");
+      return ok({
+        titlePattern,
+        found: true,
+        processName: parts[0] ?? "",
+        windowTitle: parts[1] ?? "",
+      });
+    } catch (e) {
+      return err(createError(
+        ERROR_CODES.INTERNAL_ERROR,
+        `윈도우 포커스 실패: ${titlePattern}`,
+        { context: { titlePattern, cause: String(e) } }
+      ));
+    }
+  }
+
+  // 마우스 클릭 — Win32 API SetCursorPos + mouse_event
+  clickAt(x: number, y: number): Result<OsClickResult, JarvisError> {
+    try {
+      const psScript = `
+Add-Type @'
+  using System; using System.Runtime.InteropServices;
+  public class MouseAPI {
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, int dwExtraInfo);
+  }
+'@;
+[MouseAPI]::SetCursorPos(${x}, ${y});
+Start-Sleep -Milliseconds 50;
+[MouseAPI]::mouse_event(0x0002, 0, 0, 0, 0);
+[MouseAPI]::mouse_event(0x0004, 0, 0, 0, 0);
+`.trim().replace(/\n/g, " ");
+      execSync(`powershell -NoProfile -Command "${psScript}"`, {
+        encoding: "utf-8",
+        timeout: 10_000,
+      });
+      return ok({ x, y, clicked: true });
+    } catch (e) {
+      return err(createError(
+        ERROR_CODES.INTERNAL_ERROR,
+        `마우스 클릭 실패: (${x}, ${y})`,
+        { context: { x, y, cause: String(e) } }
+      ));
+    }
+  }
+
+  // 스크린샷 캡처 — PowerShell System.Drawing으로 화면 전체 캡처
+  screenshot(outputPath: string): Result<OsScreenshotResult, JarvisError> {
+    try {
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      const psScript = `
+Add-Type -AssemblyName System.Drawing;
+Add-Type -AssemblyName System.Windows.Forms;
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds;
+$bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height);
+$gfx = [System.Drawing.Graphics]::FromImage($bmp);
+$gfx.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size);
+$bmp.Save('${outputPath.replace(/\\/g, "\\\\")}', [System.Drawing.Imaging.ImageFormat]::Png);
+$gfx.Dispose(); $bmp.Dispose();
+Write-Output "$($screen.Width)|$($screen.Height)";
+`.trim().replace(/\n/g, " ");
+      const stdout = execSync(`powershell -NoProfile -Command "${psScript}"`, {
+        encoding: "utf-8",
+        timeout: 15_000,
+      }).trim();
+
+      const parts = stdout.split("|");
+      const width = parseInt(parts[0] ?? "0", 10);
+      const height = parseInt(parts[1] ?? "0", 10);
+      const stat = fs.statSync(outputPath);
+
+      return ok({ outputPath, width, height, sizeBytes: stat.size });
+    } catch (e) {
+      return err(createError(
+        ERROR_CODES.INTERNAL_ERROR,
+        `스크린샷 캡처 실패: ${outputPath}`,
+        { context: { outputPath, cause: String(e) } }
+      ));
+    }
+  }
 }
 
 // 스텁 에러 생성 헬퍼 — 테스트 스텁 전용
@@ -318,6 +489,22 @@ class StubOsAbstraction implements OsAbstraction {
 
   killProcess(_pid: number, _signal?: string): Result<OsKillProcessResult, JarvisError> {
     return err(stubError("killProcess"));
+  }
+
+  typeText(_text: string): Result<OsTypeTextResult, JarvisError> {
+    return err(stubError("typeText"));
+  }
+
+  focusWindow(_titlePattern: string): Result<OsFocusWindowResult, JarvisError> {
+    return err(stubError("focusWindow"));
+  }
+
+  clickAt(_x: number, _y: number): Result<OsClickResult, JarvisError> {
+    return err(stubError("clickAt"));
+  }
+
+  screenshot(_outputPath: string): Result<OsScreenshotResult, JarvisError> {
+    return err(stubError("screenshot"));
   }
 }
 

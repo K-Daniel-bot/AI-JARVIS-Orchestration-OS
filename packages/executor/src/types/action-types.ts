@@ -12,7 +12,9 @@ export type AppActionType =
   | "APP_FOCUS"
   | "WINDOW_CLICK"
   | "WINDOW_TYPE"
-  | "WINDOW_SHORTCUT";
+  | "WINDOW_SHORTCUT"
+  | "SCREENSHOT"
+  | "CLIPBOARD_SET";
 
 // 웹/브라우저 액션
 export type BrowserActionType =
@@ -152,6 +154,7 @@ export function getActionCategory(actionType: ActionType): ActionCategory {
   ];
   const appTypes: readonly AppActionType[] = [
     "APP_LAUNCH", "APP_FOCUS", "WINDOW_CLICK", "WINDOW_TYPE", "WINDOW_SHORTCUT",
+    "SCREENSHOT", "CLIPBOARD_SET",
   ];
   const browserTypes: readonly BrowserActionType[] = [
     "BROWSER_OPEN_URL", "BROWSER_CLICK", "BROWSER_TYPE",

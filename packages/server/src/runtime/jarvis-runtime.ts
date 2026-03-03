@@ -472,7 +472,7 @@ class JarvisRuntime {
 
       // ─── OS 직접 실행 분기 ─────────────────────────────────
       // intent가 OS 실행 관련이면 코드 생성 파이프라인 스킵
-      const OS_EXECUTION_INTENTS = ["APP_LAUNCH", "FILE_OPERATION", "PROCESS_MANAGEMENT", "SYSTEM_CONFIG"];
+      const OS_EXECUTION_INTENTS = ["APP_LAUNCH", "FILE_OPERATION", "PROCESS_MANAGEMENT", "SYSTEM_CONFIG", "COMPOSITE_ACTION"];
       if (OS_EXECUTION_INTENTS.includes(specOutput.intent)) {
         await this.runDirectExecutionPath(runId, specOutput, decision, execCtx, actor);
         return;
@@ -1144,12 +1144,19 @@ class JarvisRuntime {
       return;
     }
 
+    // COMPOSITE_ACTION 분기 — 멀티스텝 실행
+    const specOutputFull = specOutput as typeof specOutput & {
+      steps?: { stepIndex: number; actionType: string; parameters: Record<string, unknown>; description: string; waitMs?: number }[];
+    };
+    const isComposite = specOutput.intent === "COMPOSITE_ACTION" && specOutputFull.steps && specOutputFull.steps.length > 0;
+
     // intent → actionType 매핑
     const intentActionMap: Record<string, string> = {
       APP_LAUNCH: "app.launch",
       FILE_OPERATION: "fs.write",
       PROCESS_MANAGEMENT: "process.kill",
       SYSTEM_CONFIG: "exec.run",
+      COMPOSITE_ACTION: "multi.step",
     };
     const actionType = intentActionMap[specOutput.intent] ?? "exec.run";
 
@@ -1157,7 +1164,10 @@ class JarvisRuntime {
     const parameters: Record<string, unknown> = {};
     const target = specOutput.targets[0] ?? "general";
 
-    if (specOutput.intent === "APP_LAUNCH") {
+    if (isComposite) {
+      // 복합 작업 — actions 배열로 전달
+      parameters["description"] = specOutput.interpretation;
+    } else if (specOutput.intent === "APP_LAUNCH") {
       parameters["appName"] = target;
     } else if (specOutput.intent === "FILE_OPERATION") {
       parameters["path"] = target;
@@ -1168,20 +1178,24 @@ class JarvisRuntime {
       parameters["command"] = target;
     }
 
-    // Capability Token 임시 발급 — 1회용
+    // Capability Token 임시 발급 — 복합 작업은 maxUses를 steps 수로 설정
+    const maxUses = isComposite ? specOutputFull.steps!.length : 1;
+    const capType = isComposite ? "app.launch" as const
+      : actionType.includes("app") ? "app.launch" as const
+      : actionType.includes("fs") ? "fs.write" as const
+      : actionType.includes("process") ? "process.kill" as const
+      : "exec.run" as const;
+
     const capToken: CapabilityToken = {
       tokenId: `token_direct_${randomUUID().slice(0, 8)}`,
       issuedAt: new Date().toISOString(),
       issuedBy: "jarvis-runtime",
       approvedBy: outcomeRiskScore >= 60 ? "USER" : "POLICY_AUTO",
       grant: {
-        cap: actionType.includes("app") ? "app.launch"
-          : actionType.includes("fs") ? "fs.write"
-          : actionType.includes("process") ? "process.kill"
-          : "exec.run",
+        cap: capType,
         scope: specOutput.targets,
         ttlSeconds: 300,
-        maxUses: 1,
+        maxUses,
       },
       context: {
         sessionId: execCtx.sessionId,
@@ -1204,13 +1218,23 @@ class JarvisRuntime {
       ),
     });
 
+    // Executor 입력 구성 — 복합 작업이면 actions 배열 포함
+    const executorInput: Record<string, unknown> = {
+      actionType,
+      parameters,
+      capabilityTokenId: capToken.tokenId,
+      context: execCtx,
+    };
+    if (isComposite && specOutputFull.steps) {
+      executorInput["actions"] = specOutputFull.steps.map(s => ({
+        actionType: s.actionType,
+        parameters: s.parameters,
+        waitMs: s.waitMs,
+      }));
+    }
+
     const execResult = await this.executorAgent.execute(
-      {
-        actionType,
-        parameters,
-        capabilityTokenId: capToken.tokenId,
-        context: execCtx,
-      },
+      executorInput,
       execCtx,
       capToken,
     );
@@ -1239,9 +1263,16 @@ class JarvisRuntime {
 
     // 결과 메시지 구성
     const outputInfo = execOutput.output ?? {};
-    const resultDetails = specOutput.intent === "APP_LAUNCH"
-      ? `앱 실행 완료: ${String(outputInfo["appName"] ?? target)} (PID: ${String(outputInfo["pid"] ?? "N/A")})`
-      : `실행 완료: ${execOutput.actionType} — ${execOutput.status}`;
+    let resultDetails: string;
+    if (isComposite) {
+      const totalSteps = (outputInfo["totalSteps"] as number) ?? 0;
+      const completedSteps = (outputInfo["completedSteps"] as unknown[]) ?? [];
+      resultDetails = `복합 작업 완료: ${completedSteps.length}/${totalSteps} 단계 실행`;
+    } else if (specOutput.intent === "APP_LAUNCH") {
+      resultDetails = `앱 실행 완료: ${String(outputInfo["appName"] ?? target)} (PID: ${String(outputInfo["pid"] ?? "N/A")})`;
+    } else {
+      resultDetails = `실행 완료: ${execOutput.actionType} — ${execOutput.status}`;
+    }
 
     this.broadcastChatMessage(
       runId,

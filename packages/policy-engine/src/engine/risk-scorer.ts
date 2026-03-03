@@ -30,6 +30,7 @@ const INTENT_RISK_WEIGHTS: Record<RequestIntent, Partial<RiskDimensions>> = {
   NETWORK_REQUEST: { network: 25 },
   PROCESS_MANAGEMENT: { execution: 30, destructive: 10 },
   MOBILE_ACTION: { authentication: 20, network: 15 },
+  COMPOSITE_ACTION: { execution: 25, fileSystem: 10 },
 };
 
 // 추가 컨텍스트 반영 보너스 — 특수 조건별 위험도 가산

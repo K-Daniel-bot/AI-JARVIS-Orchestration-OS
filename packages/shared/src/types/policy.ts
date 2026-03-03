@@ -16,7 +16,8 @@ export type RequestIntent =
   | "PACKAGE_INSTALL"
   | "NETWORK_REQUEST"
   | "PROCESS_MANAGEMENT"
-  | "MOBILE_ACTION";
+  | "MOBILE_ACTION"
+  | "COMPOSITE_ACTION";
 
 // 게이트 타입
 export type GateType =

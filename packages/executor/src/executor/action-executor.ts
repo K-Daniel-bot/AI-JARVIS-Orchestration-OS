@@ -147,11 +147,76 @@ function dispatchAction(
       return ok({ appName: result.value.appName, pid: result.value.pid, launched: result.value.launched });
     }
 
-    // Phase 0 스텁 — 앱/윈도우/브라우저/모바일 액션
-    case "APP_FOCUS":
-    case "WINDOW_CLICK":
-    case "WINDOW_TYPE":
-    case "WINDOW_SHORTCUT":
+    case "APP_FOCUS": {
+      // 윈도우 포커스 — 제목 패턴으로 찾아서 전면 전환
+      const titlePattern = action.params["titlePattern"];
+      if (typeof titlePattern !== "string") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "APP_FOCUS 파라미터 'titlePattern'이 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      const focusResult = os.focusWindow(titlePattern);
+      if (!focusResult.ok) return err(focusResult.error);
+      return ok({ titlePattern: focusResult.value.titlePattern, found: focusResult.value.found, processName: focusResult.value.processName, windowTitle: focusResult.value.windowTitle });
+    }
+
+    case "WINDOW_TYPE": {
+      // 텍스트 입력 — 활성 윈도우에 클립보드 + Ctrl+V
+      const text = action.params["text"];
+      if (typeof text !== "string") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "WINDOW_TYPE 파라미터 'text'가 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      const typeResult = os.typeText(text);
+      if (!typeResult.ok) return err(typeResult.error);
+      return ok({ text: typeResult.value.text, method: typeResult.value.method, success: typeResult.value.success });
+    }
+
+    case "WINDOW_CLICK": {
+      // 마우스 클릭 — 지정 좌표에 클릭
+      const x = action.params["x"];
+      const y = action.params["y"];
+      if (typeof x !== "number" || typeof y !== "number") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "WINDOW_CLICK 파라미터 'x' 또는 'y'가 숫자가 아닙니다", { context: { params: action.params } }));
+      }
+      const clickResult = os.clickAt(x, y);
+      if (!clickResult.ok) return err(clickResult.error);
+      return ok({ x: clickResult.value.x, y: clickResult.value.y, clicked: clickResult.value.clicked });
+    }
+
+    case "WINDOW_SHORTCUT": {
+      // 단축키 전송 — PowerShell SendKeys
+      const keys = action.params["keys"];
+      if (typeof keys !== "string") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "WINDOW_SHORTCUT 파라미터 'keys'가 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      const escaped = keys.replace(/'/g, "''");
+      const cmdResult = os.executeCommand(`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${escaped}')"`);
+      if (!cmdResult.ok) return err(cmdResult.error);
+      return ok({ keys, sent: true });
+    }
+
+    case "SCREENSHOT": {
+      // 화면 캡처 — PNG 파일로 저장
+      const outputPath = action.params["outputPath"];
+      if (typeof outputPath !== "string") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "SCREENSHOT 파라미터 'outputPath'가 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      const ssResult = os.screenshot(outputPath);
+      if (!ssResult.ok) return err(ssResult.error);
+      return ok({ outputPath: ssResult.value.outputPath, width: ssResult.value.width, height: ssResult.value.height, sizeBytes: ssResult.value.sizeBytes });
+    }
+
+    case "CLIPBOARD_SET": {
+      // 클립보드에 텍스트 설정 — PowerShell Set-Clipboard
+      const text = action.params["text"];
+      if (typeof text !== "string") {
+        return err(createError(ERROR_CODES.VALIDATION_FAILED, "CLIPBOARD_SET 파라미터 'text'가 문자열이 아닙니다", { context: { params: action.params } }));
+      }
+      const escaped = text.replace(/'/g, "''");
+      const cmdResult = os.executeCommand(`powershell -NoProfile -Command "Set-Clipboard -Value '${escaped}'"`);
+      if (!cmdResult.ok) return err(cmdResult.error);
+      return ok({ text, set: true });
+    }
+
+    // Phase 0 스텁 — 브라우저/모바일 액션 (Phase 2에서 구현)
     case "BROWSER_OPEN_URL":
     case "BROWSER_CLICK":
     case "BROWSER_TYPE":
@@ -177,7 +242,7 @@ function dispatchAction(
       return err(
         createError(
           ERROR_CODES.INTERNAL_ERROR,
-          `[Phase 0 스텁] ${action.actionType} 액션은 Phase 1에서 구현됩니다`,
+          `[Phase 0 스텁] ${action.actionType} 액션은 Phase 2에서 구현됩니다`,
           { context: { actionType: action.actionType, phase: "0", stub: true } }
         )
       );
