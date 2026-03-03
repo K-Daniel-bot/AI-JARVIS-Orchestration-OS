@@ -115,26 +115,26 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
           <span style={{ color: "#6b7280" }}>감사 로그가 없습니다.</span>
         ) : (
           <>
-            {filteredEntries.map((entry) => (
-          <div
-            key={entry.entryId}
-            style={{ marginBottom: "4px", borderBottom: "1px solid #21262d", paddingBottom: "4px" }}
-          >
-            <span style={{ color: "#6b7280" }}>[{entry.timestamp.slice(11, 23)}]</span>
-            <span style={{ color: levelColor[entry.logLevel] ?? "#c9d1d9" }}>
-              {" "}[{entry.logLevel}]
-            </span>
-            <span style={{ color: "#58a6ff" }}>
-              {" "}{entry.agentType}
-            </span>
-            <span>
-              {" "}{entry.summary}
-            </span>
-            {entry.isRedacted && (
-              <span style={{ marginLeft: "6px", color: "#f59e0b", fontSize: "10px" }}> [REDACTED]</span>
-            )}
-          </div>
-        ))}
+            {filteredEntries.map((entry, idx) => (
+              <div
+                key={`${entry.entryId}-${idx}`}
+                style={{ marginBottom: "4px", borderBottom: "1px solid #21262d", paddingBottom: "4px" }}
+              >
+                <span style={{ color: "#6b7280" }}>[{entry.timestamp.slice(11, 23)}]</span>
+                <span style={{ color: levelColor[entry.logLevel] ?? "#c9d1d9" }}>
+                  {" "}[{entry.logLevel}]
+                </span>
+                <span style={{ color: "#58a6ff" }}>
+                  {" "}{entry.agentType}
+                </span>
+                <span>
+                  {" "}{entry.summary}
+                </span>
+                {entry.isRedacted && (
+                  <span style={{ marginLeft: "6px", color: "#f59e0b", fontSize: "10px" }}> [REDACTED]</span>
+                )}
+              </div>
+            ))}
             <div ref={logEndRef} />
           </>
         )}
@@ -331,19 +331,22 @@ export const SafetyPanel: React.FC<SafetyPanelProps> = ({
       <div style={contentStyle} role="tabpanel">
         {activeTab === "APPROVAL" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {openGates.length === 0 && (
+            {openGates.length === 0 ? (
               <div style={{ color: "#6b7280", fontSize: "13px", textAlign: "center", marginTop: "32px" }}>
                 대기 중인 게이트가 없습니다.
               </div>
+            ) : (
+              <>
+                {openGates.map((gate) => (
+                  <GateCard
+                    key={gate.gateId}
+                    gate={gate}
+                    onApprove={onGateApprove}
+                    onReject={onGateReject}
+                  />
+                ))}
+              </>
             )}
-            {openGates.map((gate) => (
-              <GateCard
-                key={gate.gateId}
-                gate={gate}
-                onApprove={onGateApprove}
-                onReject={onGateReject}
-              />
-            ))}
           </div>
         )}
         {activeTab === "POLICY" && <PolicyTab policies={policies} />}

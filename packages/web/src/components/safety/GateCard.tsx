@@ -27,12 +27,37 @@ function formatTtl(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+// Gate 객체 정규화 — 누락된 필드에 기본값 제공
+function normalizeGate(gate: GateDto): GateDto {
+  return {
+    ...gate,
+    whyNeeded: gate.whyNeeded ?? [],
+    riskTags: gate.riskTags ?? [],
+    impact: gate.impact ?? {
+      filesModified: 0,
+      filesCreated: 0,
+      filesDeleted: 0,
+      commandsRun: 0,
+      networkAccess: false,
+      privilegeEscalation: false,
+      estimatedSizeBytes: null,
+    },
+    scope: gate.scope ?? {
+      paths: [],
+      commands: [],
+      domains: [],
+    },
+    allowedActions: gate.allowedActions ?? [],
+  };
+}
+
 export const GateCard: React.FC<GateCardProps> = ({
-  gate,
+  gate: rawGate,
   onApprove,
   onReject,
   disabled = false,
 }) => {
+  const gate = normalizeGate(rawGate);
   const [showDetails, setShowDetails] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -192,7 +217,7 @@ export const GateCard: React.FC<GateCardProps> = ({
       {/* 왜 필요한가 */}
       <div>
         <div style={sectionLabelStyle}>Why needed?</div>
-        {gate.whyNeeded.map((reason, i) => (
+        {(gate.whyNeeded ?? []).map((reason, i) => (
           <div key={i} style={whyItemStyle}>• {reason}</div>
         ))}
       </div>
@@ -201,13 +226,13 @@ export const GateCard: React.FC<GateCardProps> = ({
       <div>
         <div style={sectionLabelStyle}>Scope</div>
         <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#374151", flexWrap: "wrap" }}>
-          <span>파일: <strong>{gate.impact.filesModified + gate.impact.filesCreated + gate.impact.filesDeleted}</strong></span>
-          <span>명령: <strong>{gate.impact.commandsRun}</strong></span>
-          <span>네트워크: <strong>{gate.impact.networkAccess ? "Yes" : "No"}</strong></span>
-          <span>권한 상승: <strong>{gate.impact.privilegeEscalation ? "Yes" : "No"}</strong></span>
+          <span>파일: <strong>{(gate.impact?.filesModified ?? 0) + (gate.impact?.filesCreated ?? 0) + (gate.impact?.filesDeleted ?? 0)}</strong></span>
+          <span>명령: <strong>{gate.impact?.commandsRun ?? 0}</strong></span>
+          <span>네트워크: <strong>{gate.impact?.networkAccess ? "Yes" : "No"}</strong></span>
+          <span>권한 상승: <strong>{gate.impact?.privilegeEscalation ? "Yes" : "No"}</strong></span>
         </div>
         <div style={{ marginTop: "6px" }}>
-          {gate.scope.paths.map((p) => (
+          {(gate.scope?.paths ?? []).map((p) => (
             <span key={p} style={scopeItemStyle}>{p}</span>
           ))}
         </div>
@@ -234,15 +259,15 @@ export const GateCard: React.FC<GateCardProps> = ({
       {showDetails && (
         <div style={{ fontSize: "12px", color: "#374151", background: "#f3f4f6", borderRadius: "8px", padding: "10px" }}>
           <div style={sectionLabelStyle}>명령어</div>
-          {gate.scope.commands.length > 0
-            ? gate.scope.commands.map((cmd) => (
+          {(gate.scope?.commands ?? []).length > 0
+            ? (gate.scope?.commands ?? []).map((cmd) => (
                 <span key={cmd} style={scopeItemStyle}>{cmd}</span>
               ))
             : <span style={{ color: "#888" }}>없음</span>
           }
           <div style={{ ...sectionLabelStyle, marginTop: "8px" }}>도메인</div>
-          {gate.scope.domains.length > 0
-            ? gate.scope.domains.map((d) => (
+          {(gate.scope?.domains ?? []).length > 0
+            ? (gate.scope?.domains ?? []).map((d) => (
                 <span key={d} style={scopeItemStyle}>{d}</span>
               ))
             : <span style={{ color: "#888" }}>없음</span>
