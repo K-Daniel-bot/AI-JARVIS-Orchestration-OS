@@ -1,13 +1,14 @@
 // 채팅 패널 컴포넌트 — 좌측 패널, 사용자와 JARVIS 대화 인터페이스
 import React, { useState, useRef, useEffect } from "react";
-import type { ChatMessageDto, MessageContextBadge, SendMessageRequest } from "../../api/schema.js";
+import type { ChatMessageDto, MessageContextBadge } from "../../api/schema.js";
 import type { TrustMode } from "@jarvis/shared";
 
 // ChatPanel Props
 export interface ChatPanelProps {
   readonly messages: readonly ChatMessageDto[];
   readonly trustMode: TrustMode;
-  readonly onSendMessage: (req: SendMessageRequest) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly onSendMessage: (req: any) => void;
   readonly loading?: boolean;
 }
 
@@ -125,14 +126,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = (): void => {
     const content = input.trim();
     if (!content || loading) return;
     onSendMessage({ content, trustMode });
     setInput("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();

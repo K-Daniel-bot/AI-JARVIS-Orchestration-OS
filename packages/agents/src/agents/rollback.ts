@@ -67,6 +67,7 @@ export class RollbackAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 스텁 폴백
+    // eslint-disable-next-line no-console
         console.warn(`[RollbackAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
         output = this.buildStubOutput(runId, reason);
       } else {
@@ -85,6 +86,7 @@ export class RollbackAgent extends BaseAgent {
       { rollbackId: output.rollbackId, targetRunId: runId, usedClaude: !!this.deps.claudeClient },
     );
     if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[RollbackAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 

@@ -160,6 +160,7 @@ function createDefaultGlobal(): GlobalOptions {
 export function main(): void {
   const parseResult = parseArgs(process.argv);
   if (!parseResult.ok) {
+    // eslint-disable-next-line no-console
     console.error(`오류: ${parseResult.error.message}`);
     process.exitCode = 1;
     return;
@@ -167,12 +168,14 @@ export function main(): void {
 
   const cmdResult = executeCommand(parseResult.value);
   if (!cmdResult.ok) {
+    // eslint-disable-next-line no-console
     console.error(`오류: ${cmdResult.error.message}`);
     process.exitCode = 1;
     return;
   }
 
   if (cmdResult.value.message) {
+    // eslint-disable-next-line no-console
     console.log(cmdResult.value.message);
   }
 

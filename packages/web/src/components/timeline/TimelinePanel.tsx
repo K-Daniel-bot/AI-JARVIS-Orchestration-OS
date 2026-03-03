@@ -175,7 +175,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   const [detail, setDetail] = useState<TimelineNodeDetailDto | null>(null);
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null);
 
-  const handleNodeClick = async (nodeId: string) => {
+  const handleNodeClick = async (nodeId: string): Promise<void> => {
     onNodeSelect(nodeId);
     if (expandedNodeId === nodeId) {
       setExpandedNodeId(null);

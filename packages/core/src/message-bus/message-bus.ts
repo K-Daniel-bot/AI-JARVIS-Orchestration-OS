@@ -96,6 +96,7 @@ export class MessageBus {
             await subscription.handler(message);
           } catch (handlerError: unknown) {
             // 핸들러 에러를 격리하되 로깅 — 한 메시지 실패가 나머지 큐 처리를 막지 않음
+            // eslint-disable-next-line no-console
             console.error(`[MessageBus] ${agentType} 핸들러 에러:`, handlerError);
           }
         }

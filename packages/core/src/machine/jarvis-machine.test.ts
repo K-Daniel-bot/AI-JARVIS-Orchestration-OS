@@ -6,10 +6,13 @@ import { MACHINE_STATES, AGENT_TYPES } from "@jarvis/shared";
 import type { PolicyDecision } from "@jarvis/shared";
 
 // 테스트용 머신 액터 생성 헬퍼
-function makeActor(runId = "run-001", sessionId = "session-001") {
-  return createActor(jarvisMachine, {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeActor(runId = "run-001", sessionId = "session-001"): any {
+  const actor = createActor(jarvisMachine, {
     input: { runId, sessionId },
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return actor as any;
 }
 
 // 테스트용 PolicyDecision 픽스처
@@ -141,8 +144,10 @@ describe("IDLE → SPEC_ANALYSIS 전이", () => {
 });
 
 describe("SPEC_ANALYSIS 전이", () => {
-  function enterSpecAnalysis() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterSpecAnalysis(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트 요청" });
     return actor;
@@ -229,8 +234,10 @@ describe("SPEC_ANALYSIS 전이", () => {
 });
 
 describe("POLICY_CHECK 전이", () => {
-  function enterPolicyCheck() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterPolicyCheck(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트" });
     actor.send({
@@ -316,8 +323,10 @@ describe("POLICY_CHECK 전이", () => {
 });
 
 describe("GATE_PLAN_APPROVAL 전이", () => {
-  function enterGatePlanApproval() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterGatePlanApproval(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트" });
     actor.send({
@@ -395,8 +404,10 @@ describe("GATE_PLAN_APPROVAL 전이", () => {
 });
 
 describe("PLANNING → CODE_GENERATION 전이", () => {
-  function enterPlanning() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterPlanning(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트" });
     actor.send({
@@ -467,8 +478,10 @@ describe("PLANNING → CODE_GENERATION 전이", () => {
 });
 
 describe("ERROR_RECOVERY 전이", () => {
-  function enterErrorRecovery() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterErrorRecovery(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트" });
     actor.send({
@@ -524,8 +537,10 @@ describe("ERROR_RECOVERY 전이", () => {
 });
 
 describe("AWAITING_USER_INPUT 전이", () => {
-  function enterAwaitingUserInput() {
-    const actor = makeActor();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function enterAwaitingUserInput(): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actor: any = makeActor();
     actor.start();
     actor.send({ type: "USER_REQUEST", input: "테스트" });
     actor.send({ type: "SPEC_NEED_CLARIFICATION", question: "어떤 파일인가요?" });

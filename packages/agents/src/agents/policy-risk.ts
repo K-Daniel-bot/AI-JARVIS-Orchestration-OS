@@ -100,6 +100,7 @@ export class PolicyRiskAgent extends BaseAgent {
         { decisionId: decision.decisionId, riskLevel: decision.outcome.riskLevel },
       );
       if (!denyLogResult.ok) {
+    // eslint-disable-next-line no-console
         console.warn(`[PolicyRisk] 거부 감사 로그 기록 실패: ${denyLogResult.error.code}`);
       }
       return err(
@@ -150,6 +151,7 @@ export class PolicyRiskAgent extends BaseAgent {
       },
     );
     if (!completeLogResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[PolicyRisk] 완료 감사 로그 기록 실패: ${completeLogResult.error.code}`);
     }
 
@@ -192,6 +194,7 @@ export class PolicyRiskAgent extends BaseAgent {
 
     if (!analysisResult.ok) {
       // 심층 분석 실패는 치명적 오류가 아님 — 경고 후 null 반환
+    // eslint-disable-next-line no-console
       console.warn(`[PolicyRisk] Opus 심층 분석 실패: ${analysisResult.error.code} — 기본 판정 결과 사용`);
       return null;
     }
@@ -214,6 +217,7 @@ export class PolicyRiskAgent extends BaseAgent {
     }
 
     // Opus가 원래보다 낮은 점수를 제안한 경우 원래 점수 유지
+    // eslint-disable-next-line no-console
     console.warn(
       `[PolicyRisk] Opus 위험도 하향 제안 거부: ${deepAnalysis.adjustedRiskScore} < ${originalScore} — 원래 점수 유지`,
     );

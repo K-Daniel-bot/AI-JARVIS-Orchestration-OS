@@ -314,31 +314,9 @@ export interface EvidenceDto {
   readonly inlineContent?: string;
 }
 
-// GET /api/evidence/:id/content — 대용량 증거 스트리밍 URL
-export interface EvidenceContentUrlDto {
-  readonly url: string;
-  readonly expiresAt: string;
-}
-
 // ─────────────────────────────────────────────
 // 정책 API
 // ─────────────────────────────────────────────
-
-// 정책 요약 DTO
-export interface PolicySummaryDto {
-  readonly policyId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly priority: number;
-  readonly isActive: boolean;
-  readonly createdAt: string;
-}
-
-// GET /api/policies 응답
-export interface PolicyListDto {
-  readonly active: readonly PolicySummaryDto[];
-  readonly proposed: readonly PolicySummaryDto[];
-}
 
 // ─────────────────────────────────────────────
 // 채팅 메시지 API
@@ -366,13 +344,6 @@ export interface ChatMessageDto {
   readonly isVoice: boolean;
 }
 
-// POST /api/chat
-export interface SendMessageRequest {
-  readonly content: string;
-  readonly trustMode: TrustMode;
-  readonly isVoice?: boolean;
-  readonly voiceTranscript?: string;
-}
 
 // ─────────────────────────────────────────────
 // SSE 실시간 이벤트 스트림 스키마

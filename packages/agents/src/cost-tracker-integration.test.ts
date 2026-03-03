@@ -1,6 +1,6 @@
 // CostTracker 통합 테스트 — 에이전트 파이프라인 비용 시뮬레이션
 import { describe, it, expect, beforeEach } from "vitest";
-import { CostTracker, calculateCost, MODEL_PRICING } from "./cost-tracker.js";
+import { CostTracker, calculateCost } from "./cost-tracker.js";
 
 describe("CostTracker 통합 시뮬레이션", () => {
   let tracker: CostTracker;

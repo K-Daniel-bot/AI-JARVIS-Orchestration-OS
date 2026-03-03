@@ -26,11 +26,7 @@ import type {
   AuditListDto,
   EvidenceDto,
   EvidenceType,
-  EvidenceContentUrlDto,
-  PolicySummaryDto,
-  PolicyListDto,
   ChatMessageDto,
-  SendMessageRequest,
   StartRunRequest,
   EmergencyStopRequest,
   EmergencyStopDto,
@@ -45,7 +41,7 @@ import type {
 // ─────────────────────────────────────────────
 
 describe("ApiResponse 공통 래퍼", () => {
-  it("should create a successful ApiResponse with data", () => {
+  it("should create a successful ApiResponse with data", (): void => {
     // Arrange & Act — 성공 응답 객체 생성
     const response: ApiResponse<{ value: number }> = {
       success: true,
@@ -63,7 +59,7 @@ describe("ApiResponse 공통 래퍼", () => {
     expect(response.requestId).toBe("req-001");
   });
 
-  it("should create a failed ApiResponse with error", () => {
+  it("should create a failed ApiResponse with error", (): void => {
     // Arrange & Act — 실패 응답 객체 생성
     const apiError: ApiError = {
       code: "VALIDATION_FAILED",
@@ -86,7 +82,7 @@ describe("ApiResponse 공통 래퍼", () => {
     expect(response.error?.details?.field).toBe("runId");
   });
 
-  it("should allow ApiError without optional details field", () => {
+  it("should allow ApiError without optional details field", (): void => {
     // Arrange & Act — details 없는 에러
     const apiError: ApiError = {
       code: "INTERNAL_ERROR",
@@ -104,7 +100,7 @@ describe("ApiResponse 공통 래퍼", () => {
 // ─────────────────────────────────────────────
 
 describe("SystemStatusDto", () => {
-  it("should create a valid SystemStatusDto with all fields", () => {
+  it("should create a valid SystemStatusDto with all fields", (): void => {
     // Arrange
     const agentHealth: AgentHealthDto = {
       agentType: "orchestrator",
@@ -140,7 +136,7 @@ describe("SystemStatusDto", () => {
     expect(statusDto.capabilityTtlSeconds).toBeNull();
   });
 
-  it("should allow activeRunId and capabilityTtlSeconds as non-null", () => {
+  it("should allow activeRunId and capabilityTtlSeconds as non-null", (): void => {
     // Arrange & Act — 활성 실행과 TTL이 있는 상태
     const statusDto: SystemStatusDto = {
       currentState: "CODE_GENERATION",
@@ -167,7 +163,7 @@ describe("SystemStatusDto", () => {
 // ─────────────────────────────────────────────
 
 describe("AgentHealthDto", () => {
-  it("should create a healthy agent health DTO", () => {
+  it("should create a healthy agent health DTO", (): void => {
     // Arrange & Act
     const dto: AgentHealthDto = {
       agentType: "codegen",
@@ -185,7 +181,7 @@ describe("AgentHealthDto", () => {
     expect(dto.consecutiveFailures).toBe(0);
   });
 
-  it("should create a degraded agent with failures", () => {
+  it("should create a degraded agent with failures", (): void => {
     // Arrange & Act — 장애 상태 에이전트
     const dto: AgentHealthDto = {
       agentType: "executor",
@@ -202,7 +198,7 @@ describe("AgentHealthDto", () => {
     expect(dto.currentTask).toBeNull();
   });
 
-  it("should accept all valid AgentHealthStatus values", () => {
+  it("should accept all valid AgentHealthStatus values", (): void => {
     // Arrange — 모든 유효 상태값 테스트
     const statuses: AgentHealthDto["status"][] = [
       "HEALTHY",
@@ -223,7 +219,7 @@ describe("AgentHealthDto", () => {
 // ─────────────────────────────────────────────
 
 describe("RunDto", () => {
-  it("should create a valid RunDto with all required fields", () => {
+  it("should create a valid RunDto with all required fields", (): void => {
     // Arrange & Act
     const runDto: RunDto = {
       runId: "run-001",
@@ -250,7 +246,7 @@ describe("RunDto", () => {
     expect(runDto.openGates).toHaveLength(0);
   });
 
-  it("should accept all valid RunStatus values", () => {
+  it("should accept all valid RunStatus values", (): void => {
     // Arrange — 모든 유효 RunStatus 값
     const statuses: RunStatus[] = [
       "IDLE",
@@ -275,7 +271,7 @@ describe("RunDto", () => {
     expect(statuses).toContain("ROLLED_BACK");
   });
 
-  it("should accept BROWSER_SANDBOX as target", () => {
+  it("should accept BROWSER_SANDBOX as target", (): void => {
     // Arrange & Act
     const runDto: RunDto = {
       runId: "run-002",
@@ -304,7 +300,7 @@ describe("RunDto", () => {
 // ─────────────────────────────────────────────
 
 describe("TimelineNodeDto", () => {
-  it("should create a valid pending timeline node", () => {
+  it("should create a valid pending timeline node", (): void => {
     // Arrange & Act
     const node: TimelineNodeDto = {
       nodeId: "node-001",
@@ -334,7 +330,7 @@ describe("TimelineNodeDto", () => {
     expect(node.gateId).toBeNull();
   });
 
-  it("should create a completed timeline node with duration", () => {
+  it("should create a completed timeline node with duration", (): void => {
     // Arrange & Act — 완료된 노드
     const node: TimelineNodeDto = {
       nodeId: "node-002",
@@ -363,7 +359,7 @@ describe("TimelineNodeDto", () => {
     expect(node.riskTags).toContain("fs-write");
   });
 
-  it("should accept all valid TimelineNodeType values", () => {
+  it("should accept all valid TimelineNodeType values", (): void => {
     // Arrange
     const types: TimelineNodeType[] = [
       "SPEC",
@@ -382,7 +378,7 @@ describe("TimelineNodeDto", () => {
     expect(types).toContain("GATE");
   });
 
-  it("should accept all valid TimelineNodeStatus values", () => {
+  it("should accept all valid TimelineNodeStatus values", (): void => {
     // Arrange
     const statuses: TimelineNodeStatus[] = [
       "PENDING",
@@ -405,7 +401,7 @@ describe("TimelineNodeDto", () => {
 // ─────────────────────────────────────────────
 
 describe("GateDto", () => {
-  it("should create a valid open GateDto", () => {
+  it("should create a valid open GateDto", (): void => {
     // Arrange — 영향 요약 객체 생성
     const impact: ImpactSummaryDto = {
       filesModified: 2,
@@ -455,7 +451,7 @@ describe("GateDto", () => {
     expect(gate.resolution).toBeNull();
   });
 
-  it("should create a resolved GateDto with approval", () => {
+  it("should create a resolved GateDto with approval", (): void => {
     // Arrange — 승인 완료된 게이트
     const resolution: GateResolutionDto = {
       action: "APPROVE_ONCE",
@@ -505,7 +501,7 @@ describe("GateDto", () => {
     expect(gate.resolution?.rejectReason).toBeNull();
   });
 
-  it("should create a rejected GateDto with reason", () => {
+  it("should create a rejected GateDto with reason", (): void => {
     // Arrange
     const resolution: GateResolutionDto = {
       action: "REJECT",
@@ -555,7 +551,7 @@ describe("GateDto", () => {
     expect(gate.riskLevel).toBe("CRITICAL");
   });
 
-  it("should accept all valid GateStatus values", () => {
+  it("should accept all valid GateStatus values", (): void => {
     // Arrange
     const statuses: GateStatus[] = [
       "OPEN",
@@ -570,7 +566,7 @@ describe("GateDto", () => {
     expect(statuses).toContain("TIMED_OUT");
   });
 
-  it("should accept all valid GateAction values", () => {
+  it("should accept all valid GateAction values", (): void => {
     // Arrange
     const actions: GateAction[] = [
       "APPROVE_ONCE",
@@ -590,7 +586,7 @@ describe("GateDto", () => {
 // ─────────────────────────────────────────────
 
 describe("AuditEntryDto", () => {
-  it("should create a valid AuditEntryDto", () => {
+  it("should create a valid AuditEntryDto", (): void => {
     // Arrange & Act
     const entry: AuditEntryDto = {
       entryId: "audit-001",
@@ -615,7 +611,7 @@ describe("AuditEntryDto", () => {
     expect(entry.isRedacted).toBe(false);
   });
 
-  it("should allow redacted entry with null riskLevel", () => {
+  it("should allow redacted entry with null riskLevel", (): void => {
     // Arrange & Act — 마스킹된 감사 로그
     const entry: AuditEntryDto = {
       entryId: "audit-002",
@@ -643,7 +639,7 @@ describe("AuditEntryDto", () => {
 // ─────────────────────────────────────────────
 
 describe("AuditListDto", () => {
-  it("should create a valid AuditListDto with entries", () => {
+  it("should create a valid AuditListDto with entries", (): void => {
     // Arrange
     const entry: AuditEntryDto = {
       entryId: "audit-001",
@@ -672,7 +668,7 @@ describe("AuditListDto", () => {
     expect(listDto.hasMore).toBe(true);
   });
 
-  it("should create AuditQueryParams with optional fields", () => {
+  it("should create AuditQueryParams with optional fields", (): void => {
     // Arrange & Act — 부분 쿼리 파라미터
     const params: AuditQueryParams = {
       runId: "run-001",
@@ -694,7 +690,7 @@ describe("AuditListDto", () => {
 // ─────────────────────────────────────────────
 
 describe("EvidenceDto", () => {
-  it("should create a valid EvidenceDto", () => {
+  it("should create a valid EvidenceDto", (): void => {
     // Arrange & Act
     const evidence: EvidenceDto = {
       evidenceId: "ev-001",
@@ -715,7 +711,7 @@ describe("EvidenceDto", () => {
     expect(evidence.inlineContent).toContain("--- a/src/auth.ts");
   });
 
-  it("should create EvidenceDto without optional inlineContent", () => {
+  it("should create EvidenceDto without optional inlineContent", (): void => {
     // Arrange & Act — 대용량 항목, inlineContent 없음
     const evidence: EvidenceDto = {
       evidenceId: "ev-002",
@@ -733,7 +729,7 @@ describe("EvidenceDto", () => {
     expect(evidence.inlineContent).toBeUndefined();
   });
 
-  it("should accept all valid EvidenceType values", () => {
+  it("should accept all valid EvidenceType values", (): void => {
     // Arrange
     const types: EvidenceType[] = [
       "SCREENSHOT",
@@ -756,7 +752,7 @@ describe("EvidenceDto", () => {
 // ─────────────────────────────────────────────
 
 describe("ChatMessageDto", () => {
-  it("should create a user ChatMessageDto", () => {
+  it("should create a user ChatMessageDto", (): void => {
     // Arrange & Act
     const message: ChatMessageDto = {
       messageId: "msg-001",
@@ -775,7 +771,7 @@ describe("ChatMessageDto", () => {
     expect(message.isVoice).toBe(false);
   });
 
-  it("should create a JARVIS ChatMessageDto with runId", () => {
+  it("should create a JARVIS ChatMessageDto with runId", (): void => {
     // Arrange & Act — 실행 중 JARVIS 메시지
     const message: ChatMessageDto = {
       messageId: "msg-002",
@@ -799,7 +795,7 @@ describe("ChatMessageDto", () => {
 // ─────────────────────────────────────────────
 
 describe("StartRunRequest", () => {
-  it("should create a minimal StartRunRequest", () => {
+  it("should create a minimal StartRunRequest", (): void => {
     // Arrange & Act
     const req: StartRunRequest = {
       input: "바탕화면 파일 정리해줘",
@@ -814,7 +810,7 @@ describe("StartRunRequest", () => {
 });
 
 describe("GateApproveRequest / GateRejectRequest", () => {
-  it("should create a GateApproveRequest with APPROVE_ONCE action", () => {
+  it("should create a GateApproveRequest with APPROVE_ONCE action", (): void => {
     // Arrange & Act
     const req: GateApproveRequest = {
       action: "APPROVE_ONCE",
@@ -825,7 +821,7 @@ describe("GateApproveRequest / GateRejectRequest", () => {
     expect(req.scopeOverride).toBeUndefined();
   });
 
-  it("should create a GateApproveRequest with scope override", () => {
+  it("should create a GateApproveRequest with scope override", (): void => {
     // Arrange & Act — 범위 수정 포함 승인
     const req: GateApproveRequest = {
       action: "EDIT_SCOPE",
@@ -839,7 +835,7 @@ describe("GateApproveRequest / GateRejectRequest", () => {
     expect(req.scopeOverride?.paths).toContain("/project/src/auth/**");
   });
 
-  it("should create a GateRejectRequest with reason", () => {
+  it("should create a GateRejectRequest with reason", (): void => {
     // Arrange & Act
     const req: GateRejectRequest = {
       reason: "작업 범위가 승인 기준을 초과합니다",
@@ -851,7 +847,7 @@ describe("GateApproveRequest / GateRejectRequest", () => {
 });
 
 describe("EmergencyStopRequest / EmergencyStopDto", () => {
-  it("should create a valid EmergencyStopRequest", () => {
+  it("should create a valid EmergencyStopRequest", (): void => {
     // Arrange & Act
     const req: EmergencyStopRequest = {
       runId: "run-001",
@@ -863,7 +859,7 @@ describe("EmergencyStopRequest / EmergencyStopDto", () => {
     expect(req.reason).toBe("예상치 못한 파일 삭제 감지");
   });
 
-  it("should create a valid EmergencyStopDto", () => {
+  it("should create a valid EmergencyStopDto", (): void => {
     // Arrange & Act
     const dto: EmergencyStopDto = {
       stopped: true,
@@ -878,7 +874,7 @@ describe("EmergencyStopRequest / EmergencyStopDto", () => {
     expect(dto.rollbackPointId).toBe("checkpoint-003");
   });
 
-  it("should allow null rollbackPointId when no checkpoint exists", () => {
+  it("should allow null rollbackPointId when no checkpoint exists", (): void => {
     // Arrange & Act
     const dto: EmergencyStopDto = {
       stopped: true,
@@ -897,7 +893,7 @@ describe("EmergencyStopRequest / EmergencyStopDto", () => {
 // ─────────────────────────────────────────────
 
 describe("SseEvent", () => {
-  it("should create a valid SseEvent wrapper", () => {
+  it("should create a valid SseEvent wrapper", (): void => {
     // Arrange
     const payload: SseRunCreatedPayload = {
       runId: "run-001",
@@ -918,7 +914,7 @@ describe("SseEvent", () => {
     expect(event.sequenceId).toBe(1);
   });
 
-  it("should create a SseEvent with GATE_OPENED type", () => {
+  it("should create a SseEvent with GATE_OPENED type", (): void => {
     // Arrange — 게이트 열림 이벤트
     const gatePayload: SseGateOpenedPayload = {
       runId: "run-001",
@@ -964,7 +960,7 @@ describe("SseEvent", () => {
     expect(event.payload.gate.gateType).toBe("GATE_APPLY_CHANGES");
   });
 
-  it("should accept all valid SseEventType values", () => {
+  it("should accept all valid SseEventType values", (): void => {
     // Arrange
     const types: SseEventType[] = [
       "RUN_CREATED",
@@ -994,7 +990,7 @@ describe("SseEvent", () => {
 // ─────────────────────────────────────────────
 
 describe("PolicyDecisionSummaryDto", () => {
-  it("should create a valid PolicyDecisionSummaryDto", () => {
+  it("should create a valid PolicyDecisionSummaryDto", (): void => {
     // Arrange & Act
     const dto: PolicyDecisionSummaryDto = {
       decisionId: "pd-001",
@@ -1011,7 +1007,7 @@ describe("PolicyDecisionSummaryDto", () => {
     expect(dto.policyIds).toHaveLength(2);
   });
 
-  it("should create a CapabilityUsedDto with consumed status", () => {
+  it("should create a CapabilityUsedDto with consumed status", (): void => {
     // Arrange & Act
     const cap: CapabilityUsedDto = {
       tokenId: "cap-token-001",
@@ -1033,7 +1029,7 @@ describe("PolicyDecisionSummaryDto", () => {
 // ─────────────────────────────────────────────
 
 describe("TimelineNodeDetailDto", () => {
-  it("should create a valid TimelineNodeDetailDto with all extended fields", () => {
+  it("should create a valid TimelineNodeDetailDto with all extended fields", (): void => {
     // Arrange & Act
     const detail: TimelineNodeDetailDto = {
       // TimelineNodeDto 기본 필드

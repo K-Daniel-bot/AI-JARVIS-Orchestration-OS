@@ -131,12 +131,12 @@ export const GateCard: React.FC<GateCardProps> = ({
     border: "1px solid #ef4444",
   };
 
-  const handleApprove = (action: GateAction) => {
+  const handleApprove = (action: GateAction): void => {
     if (disabled || isResolved || isExpired) return;
     onApprove(gate.gateId, action);
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = (): void => {
     if (!rejectReason.trim()) return;
     onReject(gate.gateId, rejectReason.trim());
     setRejectMode(false);

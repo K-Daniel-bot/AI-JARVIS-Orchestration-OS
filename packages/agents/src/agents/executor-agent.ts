@@ -82,6 +82,7 @@ export class ExecutorAgent extends BaseAgent {
         { actionType, capabilityTokenId },
       );
       if (!denyAudit.ok) {
+    // eslint-disable-next-line no-console
         console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${denyAudit.error.message}`);
       }
       return err(
@@ -102,6 +103,7 @@ export class ExecutorAgent extends BaseAgent {
         { tokenId: capabilityToken.tokenId, status: capabilityToken.status },
       );
       if (!statusAudit.ok) {
+    // eslint-disable-next-line no-console
         console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${statusAudit.error.message}`);
       }
       return err(
@@ -135,6 +137,7 @@ export class ExecutorAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 직접 실행으로 폴백
+    // eslint-disable-next-line no-console
         console.warn(`[ExecutorAgent] Claude API 실패, 직접 실행 폴백: ${claudeResult.error.message}`);
         output = this.buildDirectOutput(actionId, actionType, parameters, startMs);
       } else {
@@ -160,6 +163,7 @@ export class ExecutorAgent extends BaseAgent {
       },
     );
     if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[ExecutorAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 

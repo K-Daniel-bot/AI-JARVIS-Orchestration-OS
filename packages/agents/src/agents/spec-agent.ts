@@ -82,6 +82,7 @@ export class SpecAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 Phase 0 스텁으로 폴백
+    // eslint-disable-next-line no-console
         console.warn(`[SpecAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
         output = this.buildStubOutput(rawInput);
       } else {
@@ -100,6 +101,7 @@ export class SpecAgent extends BaseAgent {
       { intent: output.intent, targetsCount: output.targets.length, usedClaude: !!this.deps.claudeClient },
     );
     if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[SpecAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 

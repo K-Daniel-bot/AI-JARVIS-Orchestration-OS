@@ -75,6 +75,7 @@ export class PlannerAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 스텁 폴백
+    // eslint-disable-next-line no-console
         console.warn(`[PlannerAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
         output = this.buildStubOutput(specOutput.intent);
       } else {
@@ -93,6 +94,7 @@ export class PlannerAgent extends BaseAgent {
       { planId: output.planId, stepCount: output.steps.length, intent: specOutput.intent, usedClaude: !!this.deps.claudeClient },
     );
     if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[PlannerAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 

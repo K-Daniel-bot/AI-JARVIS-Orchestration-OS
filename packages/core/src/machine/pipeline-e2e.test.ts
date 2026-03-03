@@ -154,7 +154,8 @@ function mockError(message = "테스트 에러 발생"): JarvisError {
 // ─── 액터 생성 헬퍼 ───────────────────────────────────────────────────────────
 
 /** 테스트용 머신 액터 생성 */
-function makeActor(runId = "run-e2e-001", sessionId = "sess-e2e-001") {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeActor(runId = "run-e2e-001", sessionId = "sess-e2e-001"): any {
   return createActor(jarvisMachine, {
     input: { runId, sessionId },
   });
@@ -359,9 +360,9 @@ describe("E2E 파이프라인 통합 테스트", () => {
   // ─── 시나리오 6: REVIEW_BLOCKERS canRetry 한계 초과 → ERROR_RECOVERY ──────
 
   describe("시나리오 6: 리뷰 블로커 반복 → 재시도 한계 초과 → ERROR_RECOVERY", () => {
-    it(`REVIEW_BLOCKERS가 ${LOOP_LIMITS.MAX_CONSECUTIVE_ERRORS}회 누적되면 ERROR_RECOVERY로 전이되어야 한다`, () => {
+    it(`REVIEW_BLOCKERS가 ${LOOP_LIMITS.MAX_CONSECUTIVE_ERRORS}회 누적되면 ERROR_RECOVERY로 전이되어야 한다`, (): void => {
       // Arrange — CODE_REVIEW까지 진행하는 헬퍼 함수
-      function advanceToCodeReview() {
+      function advanceToCodeReview(): void {
         actor.send({ type: "PLAN_COMPLETE", plan: mockPlanRef() });
         actor.send({ type: "CODE_COMPLETE", changeSet: mockChangeSetRef() });
       }

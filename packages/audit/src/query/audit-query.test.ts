@@ -11,7 +11,8 @@ import {
 
 // 테스트용 최소 AuditEntry 생성 헬퍼
 function makeEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
-  const base: AuditEntry = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const base: any = {
     auditId: "audit-test-1",
     timestamp: "2026-03-01T00:00:00.000Z",
     logLevel: "FULL",
@@ -66,7 +67,8 @@ function makeEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
 
 // SQLite DB 행 형식으로 변환 (integrity 필드 분리)
 function makeRow(entry: AuditEntry): { entry_json: string; hash: string; previous_hash: string } {
-  const { integrity, ...rest } = entry;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { integrity, ...rest } = entry as any;
   return {
     entry_json: JSON.stringify(rest),
     hash: integrity.hash,
@@ -75,7 +77,8 @@ function makeRow(entry: AuditEntry): { entry_json: string; hash: string; previou
 }
 
 // better-sqlite3 Database mock 생성 헬퍼
-function makeMockDb(rows: { entry_json: string; hash: string; previous_hash: string }[]) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeMockDb(rows: { entry_json: string; hash: string; previous_hash: string }[]): { db: any; stmt: any } {
   const stmt = {
     all: vi.fn().mockReturnValue(rows),
   };
@@ -87,7 +90,8 @@ function makeMockDb(rows: { entry_json: string; hash: string; previous_hash: str
 }
 
 // 예외를 던지는 DB mock 생성 헬퍼
-function makeErrorDb(message: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeErrorDb(message: string): any {
   const db = {
     prepare: vi.fn().mockImplementation(() => {
       throw new Error(message);

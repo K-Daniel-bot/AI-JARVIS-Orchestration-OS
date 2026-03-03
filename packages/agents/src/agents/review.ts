@@ -89,6 +89,7 @@ export class ReviewAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 스텁 폴백
+    // eslint-disable-next-line no-console
         console.warn(`[ReviewAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
         output = this.buildStubOutput(changeSet);
       } else {
@@ -107,6 +108,7 @@ export class ReviewAgent extends BaseAgent {
       { reviewId: output.reviewId, blockersCount: output.blockers.length, usedClaude: !!this.deps.claudeClient },
     );
     if (!auditResult.ok) {
+    // eslint-disable-next-line no-console
       console.warn(`[ReviewAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 

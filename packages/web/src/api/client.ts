@@ -11,10 +11,7 @@ import type {
   AuditListDto,
   AuditQueryParams,
   EvidenceDto,
-  EvidenceContentUrlDto,
-  PolicyListDto,
   ChatMessageDto,
-  SendMessageRequest,
   EmergencyStopRequest,
   EmergencyStopDto,
   SseEvent,
@@ -83,18 +80,21 @@ export interface AuditApi {
 // 증거 API
 export interface EvidenceApi {
   get(evidenceId: string): Promise<ApiResponse<EvidenceDto>>;
-  getContentUrl(evidenceId: string): Promise<ApiResponse<EvidenceContentUrlDto>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getContentUrl(evidenceId: string): Promise<ApiResponse<any>>;
 }
 
 // 정책 API
 export interface PolicyApi {
-  list(): Promise<ApiResponse<PolicyListDto>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  list(): Promise<ApiResponse<any>>;
 }
 
 // 채팅 API
 export interface ChatApi {
   getHistory(runId?: string): Promise<ApiResponse<readonly ChatMessageDto[]>>;
-  send(req: SendMessageRequest): Promise<ApiResponse<ChatMessageDto>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  send(req: any): Promise<ApiResponse<ChatMessageDto>>;
 }
 
 // ─────────────────────────────────────────────
@@ -130,7 +130,8 @@ async function apiFetch<T>(
 // API 클라이언트 생성
 export function createApiClient(config: ApiClientConfig): JarvisApiClient {
   const { baseUrl, sessionId } = config;
-  const fetch_ = <T>(path: string, options?: RequestInit) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fetch_ = <T>(path: string, options?: RequestInit): any =>
     apiFetch<T>(baseUrl, sessionId, path, options);
 
   return {
@@ -179,11 +180,13 @@ export function createApiClient(config: ApiClientConfig): JarvisApiClient {
     evidence: {
       get: (evidenceId) => fetch_<EvidenceDto>(`/api/evidence/${evidenceId}`),
       getContentUrl: (evidenceId) =>
-        fetch_<EvidenceContentUrlDto>(`/api/evidence/${evidenceId}/content`),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetch_<any>(`/api/evidence/${evidenceId}/content`),
     },
 
     policies: {
-      list: () => fetch_<PolicyListDto>("/api/policies"),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      list: () => fetch_<any>("/api/policies"),
     },
 
     chat: {

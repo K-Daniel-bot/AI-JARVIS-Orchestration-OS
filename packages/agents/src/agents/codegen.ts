@@ -74,6 +74,7 @@ export class CodegenAgent extends BaseAgent {
 
       if (!claudeResult.ok) {
         // Claude 실패 시 스텁 폴백
+        // eslint-disable-next-line no-console
         console.warn(`[CodegenAgent] Claude API 실패, 스텁 폴백: ${claudeResult.error.message}`);
         output = this.buildStubOutput(planStep.stepId, context.runId);
       } else {
@@ -98,6 +99,7 @@ export class CodegenAgent extends BaseAgent {
       },
     );
     if (!auditResult.ok) {
+      // eslint-disable-next-line no-console
       console.warn(`[CodegenAgent] 감사 로그 기록 실패: ${auditResult.error.message}`);
     }
 
