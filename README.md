@@ -369,7 +369,7 @@ Phase 3 ── 멀티모달 확장 (선택)
 
 <div align="center">
 
-`<sub>`Built with Claude Sonnet 4.6 · TypeScript Strict · pnpm Workspaces · Turborepo`</sub>`
+`<sub>`Built with Claude Sonnet 4.6 · TypeScript Strict · pnpm Workspaces · Turborepo `</sub>`
 
 <br/>
 

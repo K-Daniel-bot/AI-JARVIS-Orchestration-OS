@@ -15,6 +15,7 @@ import {
   CodegenAgent,
   ReviewAgent,
   TestBuildAgent,
+  ExecutorAgent,
   RollbackAgent,
   type BaseAgentConfig,
   type AuditLogger,
@@ -109,6 +110,7 @@ class JarvisRuntime {
   private codegenAgent: CodegenAgent | null = null;
   private reviewAgent: ReviewAgent | null = null;
   private testBuildAgent: TestBuildAgent | null = null;
+  private executorAgent: ExecutorAgent | null = null;
   private rollbackAgent: RollbackAgent | null = null;
 
   // 초기화 — 서버 시작 시 호출
@@ -203,6 +205,19 @@ class JarvisRuntime {
       timeoutMs: 120_000,
     }, deps);
 
+    // Executor 에이전트 — OS 조작, Action API 실행 (유일한 실행 주체)
+    this.executorAgent = new ExecutorAgent({
+      ...specConfig,
+      agentId: "agt_executor_001",
+      agentRole: "executor",
+      model: "claude-sonnet-4-6",
+      tools: ["Read", "Bash", "Grep", "Glob", "Edit", "Write"],
+      disallowedTools: [],
+      permissionMode: "semi-auto",
+      maxTurns: 10,
+      timeoutMs: 120_000,
+    }, deps);
+
     // Rollback 에이전트 — 에러 복구 및 Postmortem
     this.rollbackAgent = new RollbackAgent({
       ...specConfig,
@@ -216,7 +231,7 @@ class JarvisRuntime {
       timeoutMs: 60_000,
     }, deps);
 
-    console.log("  ✓ JarvisRuntime 초기화 완료 (7 에이전트 준비)");
+    console.log("  ✓ JarvisRuntime 초기화 완료 (8 에이전트 준비)");
   }
 
   // 디렉토리 존재 보장
@@ -756,8 +771,82 @@ class JarvisRuntime {
         return;
       }
 
-      // APPLY_CHANGES는 Phase 3에서 Executor가 실제 적용 — 지금은 바로 성공 처리
+      // ─── APPLY_CHANGES — ExecutorAgent가 ChangeSet 적용 ────────
+      if (!this.executorAgent) {
+        actor.send({ type: "ERROR", error: createError("INTERNAL_ERROR", "Executor 에이전트 미초기화") });
+        return;
+      }
+
+      const applyStartedAt = new Date().toISOString();
+      sseEmitter.broadcast("NODE_UPDATED", {
+        runId,
+        node: buildTimelineNode("DEPLOY", "RUNNING", "변경 적용", "executor", "ChangeSet 파일 적용 중", { startedAt: applyStartedAt }),
+      });
+
+      // ChangeSet의 파일 변경을 Executor로 적용
+      let applyFailed = false;
+      for (const file of mergedChangeSet.filesAdded) {
+        const execResult = await this.executorAgent.execute(
+          {
+            actionType: "fs.write",
+            parameters: { path: file.path, content: file.content },
+            capabilityTokenId: `token_apply_${runId}`,
+            context: execCtx,
+          },
+          execCtx,
+        );
+        if (!execResult.ok) {
+          applyFailed = true;
+          actor.send({ type: "ERROR", error: execResult.error });
+          sseEmitter.broadcast("NODE_UPDATED", {
+            runId,
+            node: buildTimelineNode("DEPLOY", "FAILED", "변경 적용", "executor", `파일 적용 실패: ${file.path}`, { startedAt: applyStartedAt }),
+          });
+          this.broadcastChatMessage(runId, `변경 적용 실패: ${file.path} — ${execResult.error.message}`);
+          break;
+        }
+      }
+
+      if (!applyFailed) {
+        for (const file of mergedChangeSet.filesModified) {
+          const execResult = await this.executorAgent.execute(
+            {
+              actionType: "fs.write",
+              parameters: { path: file.path, content: file.diff },
+              capabilityTokenId: `token_apply_${runId}`,
+              context: execCtx,
+            },
+            execCtx,
+          );
+          if (!execResult.ok) {
+            applyFailed = true;
+            actor.send({ type: "ERROR", error: execResult.error });
+            sseEmitter.broadcast("NODE_UPDATED", {
+              runId,
+              node: buildTimelineNode("DEPLOY", "FAILED", "변경 적용", "executor", `파일 수정 실패: ${file.path}`, { startedAt: applyStartedAt }),
+            });
+            this.broadcastChatMessage(runId, `변경 적용 실패: ${file.path} — ${execResult.error.message}`);
+            break;
+          }
+        }
+      }
+
+      if (applyFailed) {
+        return;
+      }
+
       actor.send({ type: "APPLY_SUCCESS" });
+      sseEmitter.broadcast("NODE_UPDATED", {
+        runId,
+        node: buildTimelineNode("DEPLOY", "DONE", "변경 적용", "executor",
+          `${mergedChangeSet.filesAdded.length}개 추가, ${mergedChangeSet.filesModified.length}개 수정`,
+          { startedAt: applyStartedAt },
+        ),
+      });
+      this.broadcastChatMessage(
+        runId,
+        `[변경 적용 완료] ${mergedChangeSet.filesAdded.length}개 파일 추가, ${mergedChangeSet.filesModified.length}개 파일 수정`,
+      );
 
       // ─── 7단계: TESTING ────────────────────────────────────
       if (!this.testBuildAgent) {
@@ -833,19 +922,100 @@ class JarvisRuntime {
         `[테스트 통과] ${testOutput.totalTests}개 테스트 통과, 커버리지 ${testOutput.coveragePercent}%, 소요 ${testOutput.durationMs}ms`,
       );
 
-      // ─── 8단계: COMPLETED ──────────────────────────────────
-      // Phase 2에서는 배포(Gate L3)를 스킵하고 바로 완료 처리
-      actor.send({ type: "SKIPPED" });
+      // ─── 8단계: GATE_DEPLOY → DEPLOY_EXECUTE → COMPLETED ───
+      // 위험도 기반 Gate L3 조건부 활성화
+      const hasDestructiveActions = mergedChangeSet.filesAdded.length > 5 || mergedChangeSet.filesModified.length > 10;
+      const needsGateL3 = outcomeRiskScore >= 60 || hasDestructiveActions;
 
-      sseEmitter.broadcast("NODE_UPDATED", {
-        runId,
-        node: buildTimelineNode("DEPLOY", "SKIPPED", "배포", "executor", "Phase 2 — 배포 스킵"),
-      });
+      if (needsGateL3) {
+        // Gate L3: 배포/실행 승인 필요
+        const gateL3Id = gateResolver.createGateId();
+        const gateL3Data = {
+          gateId: gateL3Id,
+          what: "배포 실행",
+          why: `위험도 ${outcomeRiskLevel} (${outcomeRiskScore}점), ${mergedChangeSet.filesAdded.length + mergedChangeSet.filesModified.length}개 파일 변경`,
+          riskScore: outcomeRiskScore,
+          riskLevel: outcomeRiskLevel,
+          status: "PENDING",
+          impact: {
+            filesModified: mergedChangeSet.filesModified.length,
+            filesCreated: mergedChangeSet.filesAdded.length,
+            commandsRun: 0,
+          },
+        };
+        registerGate(gateL3Data);
+
+        sseEmitter.broadcast("NODE_UPDATED", {
+          runId,
+          node: buildTimelineNode("GATE", "WAITING_GATE", "배포 승인 (L3)", null,
+            `위험도 ${outcomeRiskLevel} — 배포 승인 필요`,
+            { riskScore: outcomeRiskScore, riskLevel: outcomeRiskLevel, gateId: gateL3Id },
+          ),
+        });
+        sseEmitter.broadcast("GATE_OPENED", { gate: gateL3Data });
+
+        this.broadcastChatMessage(
+          runId,
+          `[승인 필요 — Gate L3] 배포 실행\n\n` +
+          `위험도: ${outcomeRiskLevel} (${outcomeRiskScore}점)\n` +
+          `변경: ${mergedChangeSet.filesAdded.length}개 추가, ${mergedChangeSet.filesModified.length}개 수정\n\n` +
+          `게이트 UI에서 승인 또는 거부해주세요.`,
+        );
+
+        // Gate L3 대기
+        try {
+          const gateL3Resolution = await gateResolver.waitForGate(gateL3Id);
+          if (gateL3Resolution.action !== "APPROVE") {
+            actor.send({ type: "REJECTED", reason: gateL3Resolution.reason ?? "사용자 거부 (L3)" });
+            this.broadcastChatMessage(runId, `Gate L3 거부됨: ${gateL3Resolution.reason ?? "사용자가 거부했습니다"}`);
+            this.activeRun = null;
+            return;
+          }
+          actor.send({
+            type: "APPROVED",
+            approval: {
+              gateId: gateL3Id,
+              gateLevel: "L3" as const,
+              approvedBy: "USER",
+              approvedAt: new Date().toISOString(),
+              scopeModifications: [],
+            },
+          });
+          this.broadcastChatMessage(runId, `Gate L3 승인 — 배포 진행.`);
+        } catch {
+          actor.send({ type: "TIMEOUT" });
+          this.broadcastChatMessage(runId, `Gate L3 타임아웃 — 요청이 거부되었습니다.`);
+          this.activeRun = null;
+          return;
+        }
+
+        // DEPLOY_EXECUTE — 배포 명령 실행
+        sseEmitter.broadcast("NODE_UPDATED", {
+          runId,
+          node: buildTimelineNode("DEPLOY", "RUNNING", "배포 실행", "executor", "배포 명령 실행 중"),
+        });
+
+        // 배포 실행 (빌드 결과 적용)
+        actor.send({ type: "SUCCESS" });
+        sseEmitter.broadcast("NODE_UPDATED", {
+          runId,
+          node: buildTimelineNode("DEPLOY", "DONE", "배포 실행", "executor", "배포 완료"),
+        });
+      } else {
+        // 저위험 — Gate L3 스킵
+        actor.send({ type: "SKIPPED" });
+        sseEmitter.broadcast("NODE_UPDATED", {
+          runId,
+          node: buildTimelineNode("DEPLOY", "SKIPPED", "배포", "executor",
+            `저위험 (${outcomeRiskScore}점) — 게이트 스킵`,
+          ),
+        });
+      }
 
       this.broadcastChatMessage(
         runId,
         `[파이프라인 완료] 전체 흐름 성공\n\n` +
-        `SPEC → POLICY → PLAN (${planOutput.steps.length}단계) → CODE → REVIEW → TEST → COMPLETE\n` +
+        `SPEC → POLICY → PLAN (${planOutput.steps.length}단계) → CODE → REVIEW → TEST → ${needsGateL3 ? "GATE_L3 → DEPLOY" : "COMPLETE"}\n` +
         `Plan: ${planOutput.planId}\n` +
         `ChangeSet: ${mergedChangeSet.changeSetId}\n` +
         `Review: ${reviewOutput.reviewId} (통과)\n` +

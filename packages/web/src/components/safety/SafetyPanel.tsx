@@ -1,5 +1,5 @@
 // 안전 패널 컴포넌트 — 우측 패널 (Approval / Policy / Evidence / Audit 4개 탭)
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { GateDto, GateAction, GateScopeDto, AuditEntryDto, EvidenceDto, PolicyListDto } from "../../api/schema.js";
 import { GateCard } from "./GateCard.js";
 import { Badge, riskLevelToVariant } from "../common/Badge.js";
@@ -23,7 +23,14 @@ export interface SafetyPanelProps {
 // ─────────────────────────────────────────────
 // 감사 로그 탭
 // ─────────────────────────────────────────────
+// 감사 로그 레벨 필터 타입
+type AuditLogLevel = "ALL" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "CRITICAL";
+
 const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) => {
+  const [filterLevel, setFilterLevel] = useState<AuditLogLevel>("ALL");
+  const [autoScroll, setAutoScroll] = useState(true);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
   const levelColor: Record<string, string> = {
     DEBUG:    "#9ca3af",
     INFO:     "#374151",
@@ -32,8 +39,64 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
     CRITICAL: "#7f1d1d",
   };
 
+  // 로그 레벨 우선순위 맵
+  const levelPriority: Record<string, number> = {
+    DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3, CRITICAL: 4,
+  };
+
+  // 필터링된 엔트리
+  const filteredEntries = filterLevel === "ALL"
+    ? entries
+    : entries.filter((e) => (levelPriority[e.logLevel] ?? 0) >= (levelPriority[filterLevel] ?? 0));
+
+  // 자동 스크롤 — 새 엔트리 추가 시 하단으로
+  useEffect(() => {
+    if (autoScroll && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [filteredEntries.length, autoScroll]);
+
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: "2px 6px",
+    fontSize: "10px",
+    fontWeight: active ? 700 : 400,
+    color: active ? "#fff" : "#9ca3af",
+    background: active ? "#374151" : "transparent",
+    border: "1px solid #374151",
+    borderRadius: "4px",
+    cursor: "pointer",
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* 필터 바 */}
+      <div style={{ display: "flex", gap: "4px", alignItems: "center", marginBottom: "6px", flexWrap: "wrap" }}>
+        {(["ALL", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"] as AuditLogLevel[]).map((level) => (
+          <button
+            key={level}
+            style={filterBtnStyle(filterLevel === level)}
+            onClick={() => setFilterLevel(level)}
+            aria-label={`필터: ${level}`}
+          >
+            {level}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <label style={{ fontSize: "10px", color: "#6b7280", display: "flex", alignItems: "center", gap: "4px" }}>
+          <input
+            type="checkbox"
+            checked={autoScroll}
+            onChange={(e) => setAutoScroll(e.target.checked)}
+            style={{ accentColor: "#4a9eed" }}
+          />
+          자동 스크롤
+        </label>
+        <span style={{ fontSize: "10px", color: "#6b7280" }}>
+          {filteredEntries.length}/{entries.length}
+        </span>
+      </div>
+
+      {/* 로그 뷰어 */}
       <div
         style={{
           flex: 1,
@@ -49,10 +112,10 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
         aria-label="감사 로그"
         aria-live="polite"
       >
-        {entries.length === 0 && (
+        {filteredEntries.length === 0 && (
           <span style={{ color: "#6b7280" }}>감사 로그가 없습니다.</span>
         )}
-        {entries.map((entry) => (
+        {filteredEntries.map((entry) => (
           <div
             key={entry.entryId}
             style={{ marginBottom: "4px", borderBottom: "1px solid #21262d", paddingBottom: "4px" }}
@@ -71,6 +134,7 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
             )}
           </div>
         ))}
+        <div ref={logEndRef} />
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import type {
   SendMessageRequest,
   SseEvent,
   TimelineNodeDetailDto,
+  AgentHealthDto,
 } from "./api/schema.js";
 import { createApiClient } from "./api/client.js";
 import { DashboardLayout } from "./components/layout/DashboardLayout.js";
@@ -66,6 +67,8 @@ export const App: React.FC = () => {
   const [connected, setConnected] = useState(false);
   const [ttlSeconds, setTtlSeconds] = useState<number | null>(null);
   const [emergencyStopOpen, setEmergencyStopOpen] = useState(false);
+  const [agentHealth, setAgentHealth] = useState<readonly AgentHealthDto[]>([]);
+  const [systemError, setSystemError] = useState<string | null>(null);
 
   // ─── 초기 데이터 로드 ────────────────────────────────────
   useEffect(() => {
@@ -154,6 +157,47 @@ export const App: React.FC = () => {
         case "CHAT_MESSAGE_ADDED": {
           const p = event.payload as { message: ChatMessageDto };
           setMessages((prev) => [...prev, p.message]);
+          break;
+        }
+        case "RUN_CREATED": {
+          const p = event.payload as { runId: string; trustMode: RunDto["trustMode"] };
+          setRun((prev) => ({
+            ...prev,
+            runId: p.runId,
+            trustMode: p.trustMode,
+            status: "SPEC_ANALYSIS",
+            timeline: [],
+            openGates: [],
+          }));
+          break;
+        }
+        case "EVIDENCE_ADDED": {
+          const p = event.payload as { evidence: EvidenceDto };
+          setEvidenceItems((prev) => [p.evidence, ...prev].slice(0, 100));
+          break;
+        }
+        case "AGENT_STATUS_CHANGED": {
+          const p = event.payload as { agent: AgentHealthDto };
+          setAgentHealth((prev) => {
+            const exists = prev.some((a) => a.agentId === p.agent.agentId);
+            if (exists) return prev.map((a) => (a.agentId === p.agent.agentId ? p.agent : a));
+            return [...prev, p.agent];
+          });
+          break;
+        }
+        case "EMERGENCY_STOPPED": {
+          const p = event.payload as { runId: string; reason: string };
+          setRun((prev) =>
+            prev.runId === p.runId ? { ...prev, status: "FAILED" } : prev,
+          );
+          setEmergencyStopOpen(false);
+          break;
+        }
+        case "SYSTEM_ERROR": {
+          const p = event.payload as { code: string; message: string };
+          setSystemError(`[${p.code}] ${p.message}`);
+          // 5초 후 자동 해제
+          setTimeout(() => setSystemError(null), 5000);
           break;
         }
         case "EXECUTOR_DISCONNECTED":
@@ -269,6 +313,28 @@ export const App: React.FC = () => {
 
   return (
     <>
+      {/* 시스템 에러 배너 */}
+      {systemError && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, zIndex: 9998,
+            background: "#FEF2F2", borderBottom: "2px solid #EF4444",
+            padding: "8px 16px", display: "flex", alignItems: "center",
+            justifyContent: "space-between", fontSize: "14px", color: "#991B1B",
+          }}
+          role="alert"
+        >
+          <span>{systemError}</span>
+          <button
+            onClick={() => setSystemError(null)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "#991B1B" }}
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 긴급 정지 오버레이 */}
       {emergencyStopOpen && (
         <div

@@ -44,11 +44,15 @@ export type {
   OsDeleteFileResult,
   OsExecuteCommandResult,
   OsLaunchAppResult,
+  OsListDirectoryResult,
+  OsMoveFileResult,
+  OsKillProcessResult,
   OsAbstraction,
 } from "./os/os-abstraction.js";
 export {
   detectPlatform,
   createOsAbstraction,
+  createStubOsAbstraction,
 } from "./os/os-abstraction.js";
 
 // 액션 실행기

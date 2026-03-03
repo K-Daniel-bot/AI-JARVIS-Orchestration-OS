@@ -72,21 +72,26 @@ function dispatchAction(
     }
 
     case "FS_LIST": {
+      // 디렉토리 목록 조회 — OsAbstraction.listDirectory() 위임
       const path = action.params["path"];
       if (typeof path !== "string") {
         return err(createError(ERROR_CODES.VALIDATION_FAILED, "FS_LIST 파라미터 'path'가 문자열이 아닙니다", { context: { params: action.params } }));
       }
-      // Phase 0 스텁 — FS_LIST는 readFile로 대리 처리
-      return err(createError(ERROR_CODES.INTERNAL_ERROR, "[Phase 0 스텁] FS_LIST 작업은 Phase 1에서 구현됩니다", { context: { path, phase: "0" } }));
+      const result = os.listDirectory(path);
+      if (!result.ok) return err(result.error);
+      return ok({ path: result.value.path, entries: result.value.entries });
     }
 
     case "FS_MOVE": {
+      // 파일 이동 — OsAbstraction.moveFile() 위임
       const sourcePath = action.params["sourcePath"];
       const destinationPath = action.params["destinationPath"];
       if (typeof sourcePath !== "string" || typeof destinationPath !== "string") {
         return err(createError(ERROR_CODES.VALIDATION_FAILED, "FS_MOVE 파라미터 'sourcePath' 또는 'destinationPath'가 문자열이 아닙니다", { context: { params: action.params } }));
       }
-      return err(createError(ERROR_CODES.INTERNAL_ERROR, "[Phase 0 스텁] FS_MOVE 작업은 Phase 1에서 구현됩니다", { context: { sourcePath, destinationPath, phase: "0" } }));
+      const result = os.moveFile(sourcePath, destinationPath);
+      if (!result.ok) return err(result.error);
+      return ok({ sourcePath: result.value.sourcePath, destPath: result.value.destPath });
     }
 
     case "FS_DELETE": {
@@ -121,11 +126,15 @@ function dispatchAction(
     }
 
     case "PROCESS_KILL": {
+      // 프로세스 종료 — OsAbstraction.killProcess() 위임
       const pid = action.params["pid"];
       if (typeof pid !== "number") {
         return err(createError(ERROR_CODES.VALIDATION_FAILED, "PROCESS_KILL 파라미터 'pid'가 숫자가 아닙니다", { context: { params: action.params } }));
       }
-      return err(createError(ERROR_CODES.INTERNAL_ERROR, "[Phase 0 스텁] PROCESS_KILL 작업은 Phase 1에서 구현됩니다", { context: { pid, phase: "0" } }));
+      const signal = typeof action.params["signal"] === "string" ? action.params["signal"] : undefined;
+      const result = os.killProcess(pid, signal);
+      if (!result.ok) return err(result.error);
+      return ok({ pid: result.value.pid, signal: result.value.signal, success: result.value.success });
     }
 
     case "APP_LAUNCH": {
