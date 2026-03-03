@@ -8,7 +8,10 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@jarvis/server --filter=@jarvis/web",
+    "dev:server": "pnpm --filter @jarvis/server dev",
+    "dev:web": "pnpm --filter @jarvis/web dev",
+    "start": "node scripts/start.js",
     "clean": "turbo run clean"
   },
   "devDependencies": {

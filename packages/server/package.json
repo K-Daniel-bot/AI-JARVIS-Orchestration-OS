@@ -1,0 +1,31 @@
+{
+  "name": "@jarvis/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch & sleep 2 && node --watch dist/index.js",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/core": "workspace:*",
+    "@jarvis/policy-engine": "workspace:*",
+    "@jarvis/audit": "workspace:*",
+    "@jarvis/agents": "workspace:*",
+    "express": "4.21.2",
+    "cors": "2.8.5"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.0",
+    "@types/cors": "2.8.17",
+    "@types/node": "20.17.0",
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  }
+}

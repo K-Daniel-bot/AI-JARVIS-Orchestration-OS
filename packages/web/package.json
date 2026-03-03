@@ -12,18 +12,27 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && vite build",
+    "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src/",
-    "clean": "rm -rf dist coverage"
+    "clean": "rm -rf dist dist-app coverage"
   },
   "dependencies": {
-    "@jarvis/shared": "workspace:*"
+    "@jarvis/shared": "workspace:*",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "framer-motion": "11.18.2",
+    "clsx": "2.1.1"
   },
   "devDependencies": {
     "@types/node": "20.17.0",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@vitejs/plugin-react": "4.3.4",
     "typescript": "5.7.3",
+    "vite": "6.0.11",
     "vitest": "2.1.8"
   }
 }
