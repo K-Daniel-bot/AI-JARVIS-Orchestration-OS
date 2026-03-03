@@ -634,4 +634,144 @@ describe("E2E 파이프라인 통합 테스트", () => {
       expect(actor.getSnapshot().context.errorHistory).toHaveLength(2);
     });
   });
+
+  // ─── 시나리오 11: CONSTRAINED_ALLOW → PLANNING 전이 ────────────────────────
+
+  describe("시나리오 11: CONSTRAINED_ALLOW → PLANNING 전이", () => {
+    it("CONSTRAINED_ALLOW 이벤트로 PLANNING 상태로 전이되고 policyDecision이 저장되어야 한다", () => {
+      // Arrange — POLICY_CHECK까지 진행
+      actor.send({ type: "USER_REQUEST", input: "함수 구현" });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.SPEC_ANALYSIS);
+
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.POLICY_CHECK);
+
+      // Act — CONSTRAINED_ALLOW 이벤트 전송
+      const decision = mockPolicyDecision("CONSTRAINED_ALLOW");
+      actor.send({ type: "CONSTRAINED_ALLOW", decision });
+
+      // Assert — PLANNING으로 전이
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.PLANNING);
+      expect(actor.getSnapshot().context.currentAgent).toBe(AGENT_TYPES.PLANNER);
+      // 정책 판정 결과가 컨텍스트에 저장
+      expect(actor.getSnapshot().context.policyDecision?.outcome.status).toBe("CONSTRAINED_ALLOW");
+    });
+  });
+
+  // ─── 시나리오 12: GATE_DEPLOY → APPROVED(L3) → DEPLOY_EXECUTE → COMPLETED ─
+
+  describe("시나리오 12: GATE_DEPLOY → APPROVED(L3) → DEPLOY_EXECUTE → COMPLETED", () => {
+    it("GATE_DEPLOY에서 L3 승인 후 DEPLOY_EXECUTE 거쳐 COMPLETED로 완료되어야 한다", () => {
+      // Arrange — GATE_DEPLOY까지 진행 (Happy Path)
+      actor.send({ type: "USER_REQUEST", input: "기능 배포" });
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      actor.send({ type: "ALLOW", decision: mockPolicyDecision("ALLOW") });
+      actor.send({ type: "PLAN_COMPLETE", plan: mockPlanRef() });
+      actor.send({ type: "CODE_COMPLETE", changeSet: mockChangeSetRef() });
+      actor.send({ type: "REVIEW_PASS", review: mockReviewRef(true) });
+      actor.send({ type: "APPROVED", approval: mockGateApproval("L2") });
+      actor.send({ type: "APPLY_SUCCESS" });
+      actor.send({ type: "TEST_PASS", result: mockTestResultRef(true) });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.GATE_DEPLOY);
+
+      // Act — L3 게이트 승인
+      actor.send({ type: "APPROVED", approval: mockGateApproval("L3") });
+
+      // Assert — DEPLOY_EXECUTE → executor 에이전트 할당
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.DEPLOY_EXECUTE);
+      expect(actor.getSnapshot().context.currentAgent).toBe(AGENT_TYPES.EXECUTOR);
+      // L3 게이트 승인이 gateApprovals에 추가
+      expect(actor.getSnapshot().context.gateApprovals).toHaveLength(2); // L2 + L3
+
+      // Act — 배포 성공
+      actor.send({ type: "SUCCESS" });
+
+      // Assert — COMPLETED 최종 상태
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.COMPLETED);
+      expect(actor.getSnapshot().status).toBe("done");
+    });
+  });
+
+  // ─── 시나리오 13: TIMEOUT → DENIED 전이 ───────────────────────────────────
+
+  describe("시나리오 13: GATE 대기 중 TIMEOUT → DENIED 전이", () => {
+    it("GATE_PLAN_APPROVAL에서 TIMEOUT 시 DENIED 최종 상태로 전이되어야 한다", () => {
+      // Arrange — GATE_PLAN_APPROVAL까지 진행
+      actor.send({ type: "USER_REQUEST", input: "패키지 설치" });
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      actor.send({
+        type: "APPROVAL_REQUIRED",
+        decision: mockPolicyDecision("APPROVAL_REQUIRED"),
+      });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.GATE_PLAN_APPROVAL);
+
+      // Act — 타임아웃 발생
+      actor.send({ type: "TIMEOUT" });
+
+      // Assert — DENIED 최종 상태
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.DENIED);
+      expect(actor.getSnapshot().status).toBe("done");
+    });
+  });
+
+  // ─── 시나리오 14: 임의 상태 ERROR → ERROR_RECOVERY 전이 ───────────────────
+
+  describe("시나리오 14: 다양한 상태에서 ERROR → ERROR_RECOVERY 전이", () => {
+    it("PLANNING 상태에서 ERROR 발생 시 ERROR_RECOVERY로 전이되어야 한다", () => {
+      // Arrange — PLANNING까지 진행
+      actor.send({ type: "USER_REQUEST", input: "함수 구현" });
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      actor.send({ type: "ALLOW", decision: mockPolicyDecision("ALLOW") });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.PLANNING);
+
+      // Act — 에러 발생
+      actor.send({ type: "ERROR", error: mockError("Planner 실패") });
+
+      // Assert — ERROR_RECOVERY + rollback 에이전트 할당
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.ERROR_RECOVERY);
+      expect(actor.getSnapshot().context.currentAgent).toBe(AGENT_TYPES.ROLLBACK);
+      expect(actor.getSnapshot().context.errorHistory).toHaveLength(1);
+    });
+
+    it("APPLY_CHANGES 상태에서 ERROR 발생 시 ERROR_RECOVERY로 전이되어야 한다", () => {
+      // Arrange — APPLY_CHANGES까지 진행
+      actor.send({ type: "USER_REQUEST", input: "파일 수정" });
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      actor.send({ type: "ALLOW", decision: mockPolicyDecision("ALLOW") });
+      actor.send({ type: "PLAN_COMPLETE", plan: mockPlanRef() });
+      actor.send({ type: "CODE_COMPLETE", changeSet: mockChangeSetRef() });
+      actor.send({ type: "REVIEW_PASS", review: mockReviewRef(true) });
+      actor.send({ type: "APPROVED", approval: mockGateApproval("L2") });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.APPLY_CHANGES);
+
+      // Act — 적용 실패
+      actor.send({ type: "APPLY_FAILED", error: mockError("파일 적용 실패") });
+
+      // Assert — ERROR_RECOVERY로 전이
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.ERROR_RECOVERY);
+      expect(actor.getSnapshot().context.currentAgent).toBe(AGENT_TYPES.ROLLBACK);
+    });
+
+    it("DEPLOY_EXECUTE 상태에서 ERROR 발생 시 ERROR_RECOVERY로 전이되어야 한다", () => {
+      // Arrange — DEPLOY_EXECUTE까지 진행
+      actor.send({ type: "USER_REQUEST", input: "배포 실행" });
+      actor.send({ type: "SPEC_COMPLETE", spec: mockSpecRef() });
+      actor.send({ type: "ALLOW", decision: mockPolicyDecision("ALLOW") });
+      actor.send({ type: "PLAN_COMPLETE", plan: mockPlanRef() });
+      actor.send({ type: "CODE_COMPLETE", changeSet: mockChangeSetRef() });
+      actor.send({ type: "REVIEW_PASS", review: mockReviewRef(true) });
+      actor.send({ type: "APPROVED", approval: mockGateApproval("L2") });
+      actor.send({ type: "APPLY_SUCCESS" });
+      actor.send({ type: "TEST_PASS", result: mockTestResultRef(true) });
+      actor.send({ type: "APPROVED", approval: mockGateApproval("L3") });
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.DEPLOY_EXECUTE);
+
+      // Act — 배포 에러 발생
+      actor.send({ type: "ERROR", error: mockError("배포 실패") });
+
+      // Assert — ERROR_RECOVERY로 전이
+      expect(actor.getSnapshot().value).toBe(MACHINE_STATES.ERROR_RECOVERY);
+      expect(actor.getSnapshot().context.currentAgent).toBe(AGENT_TYPES.ROLLBACK);
+    });
+  });
 });
