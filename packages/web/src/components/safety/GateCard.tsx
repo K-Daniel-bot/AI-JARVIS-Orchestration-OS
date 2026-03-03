@@ -177,7 +177,7 @@ export const GateCard: React.FC<GateCardProps> = ({
           size="md"
           pulse={gate.riskLevel === "HIGH" || gate.riskLevel === "CRITICAL"}
         />
-        {gate.riskTags.map((tag) => (
+        {(gate.riskTags ?? []).map((tag) => (
           <Badge key={tag} variant="neutral" label={tag} size="sm" />
         ))}
         {isResolved && (

@@ -217,8 +217,9 @@ export const App: React.FC = () => {
   const handleSendMessage = useCallback(async (req: any) => {
     setChatLoading(true);
     // 즉시 사용자 메시지 표시 (낙관적 업데이트)
+    const tempMessageId = crypto.randomUUID();
     const tempMsg: ChatMessageDto = {
-      messageId: crypto.randomUUID(),
+      messageId: tempMessageId,
       role: "USER",
       content: req.content,
       timestamp: new Date().toISOString(),
@@ -227,12 +228,18 @@ export const App: React.FC = () => {
       isVoice: req.isVoice ?? false,
     };
     setMessages((prev) => [...prev, tempMsg]);
+
     const result = await api.chat.send(req);
     if (result.success && result.data) {
-      // SSE로 JARVIS 응답이 오므로 중복 추가 방지 — 서버 응답으로 교체
-      setMessages((prev) =>
-        prev.map((m) => (m.messageId === tempMsg.messageId ? result.data! : m)),
-      );
+      // 서버 응답으로 임시 메시지 교체 (중복 방지)
+      const responseMsg = result.data;
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.messageId !== tempMessageId);
+        return [...filtered, responseMsg];
+      });
+    } else {
+      // 실패 시 임시 메시지 제거
+      setMessages((prev) => prev.filter((m) => m.messageId !== tempMessageId));
     }
     setChatLoading(false);
   }, [run.runId]);

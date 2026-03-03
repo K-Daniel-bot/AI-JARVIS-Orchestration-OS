@@ -111,10 +111,11 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
         aria-label="감사 로그"
         aria-live="polite"
       >
-        {filteredEntries.length === 0 && (
+        {filteredEntries.length === 0 ? (
           <span style={{ color: "#6b7280" }}>감사 로그가 없습니다.</span>
-        )}
-        {filteredEntries.map((entry) => (
+        ) : (
+          <>
+            {filteredEntries.map((entry) => (
           <div
             key={entry.entryId}
             style={{ marginBottom: "4px", borderBottom: "1px solid #21262d", paddingBottom: "4px" }}
@@ -134,7 +135,9 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
             )}
           </div>
         ))}
-        <div ref={logEndRef} />
+            <div ref={logEndRef} />
+          </>
+        )}
       </div>
     </div>
   );
