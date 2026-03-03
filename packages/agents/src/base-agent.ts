@@ -14,6 +14,7 @@ import type {
   AgentTool,
   AgentExecutionContext,
 } from "./types/agent-config.js";
+import { callClaude, parseJsonResponse } from "./claude-client.js";
 
 // 에이전트 추상 기반 클래스 — 입력 검증, 감사 로그, 도구 권한 관리
 export abstract class BaseAgent {
@@ -144,5 +145,32 @@ export abstract class BaseAgent {
       return false;
     }
     return this.config.tools.includes(tool);
+  }
+
+  // Claude API 호출 + JSON 파싱 + Zod 검증 — 에이전트에서 공통 사용
+  protected async callClaudeWithJson<T>(
+    systemPrompt: string,
+    userMessage: string,
+    schema: z.ZodType<T>,
+  ): Promise<Result<T, JarvisError>> {
+    if (!this.deps.claudeClient) {
+      return err(
+        createError("INTERNAL_ERROR", "claudeClient가 주입되지 않았습니다", {
+          agentId: this.config.agentId,
+        }),
+      );
+    }
+
+    const claudeResult = await callClaude(this.deps.claudeClient, {
+      model: this.config.model,
+      systemPrompt,
+      userMessage,
+    });
+
+    if (!claudeResult.ok) {
+      return err(claudeResult.error);
+    }
+
+    return parseJsonResponse(claudeResult.value.content, schema);
   }
 }

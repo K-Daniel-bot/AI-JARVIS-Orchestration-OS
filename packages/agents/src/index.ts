@@ -1,5 +1,13 @@
 // @jarvis/agents — 에이전트 시스템 barrel export
 
+// Claude API 클라이언트
+export {
+  callClaude,
+  parseJsonResponse,
+  createAnthropicClient,
+} from "./claude-client.js";
+export type { ClaudeCallOptions, ClaudeResponse } from "./claude-client.js";
+
 // 기반 클래스
 export { BaseAgent } from "./base-agent.js";
 

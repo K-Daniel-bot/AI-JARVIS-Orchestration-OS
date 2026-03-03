@@ -1,4 +1,5 @@
 // 에이전트 설정 타입 정의 — BaseAgent 생성자에 전달되는 설정 구조
+import type Anthropic from "@anthropic-ai/sdk";
 import type { Result, JarvisError, AuditEntry } from "@jarvis/shared";
 import type { PolicyDecision, PolicySubject, PolicyRequest } from "@jarvis/shared";
 
@@ -74,4 +75,5 @@ export interface PolicyEvaluator {
 export interface BaseAgentDependencies {
   readonly auditLogger: AuditLogger;
   readonly policyEngine: PolicyEvaluator;
+  readonly claudeClient?: Anthropic;  // 옵셔널 — Phase 0 테스트 호환
 }

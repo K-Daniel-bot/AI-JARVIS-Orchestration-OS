@@ -22,10 +22,19 @@ import { TimelinePanel } from "./components/timeline/TimelinePanel.js";
 import { SafetyPanel } from "./components/safety/SafetyPanel.js";
 import type { TrustMode } from "@jarvis/shared";
 
-// API 클라이언트 초기화
+// API 클라이언트 초기화 — sessionId를 localStorage에서 관리
+const getOrCreateSessionId = (): string => {
+  const STORAGE_KEY = "jarvis_session_id";
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) return stored;
+  const newId = crypto.randomUUID();
+  localStorage.setItem(STORAGE_KEY, newId);
+  return newId;
+};
+
 const api = createApiClient({
-  baseUrl: "",           // Vite 프록시가 /api → localhost:3001 으로 전달
-  sessionId: crypto.randomUUID(),
+  baseUrl: "",           // Vite 프록시가 /api → localhost:3002로 전달
+  sessionId: getOrCreateSessionId(),
 });
 
 // 목업 초기 상태 (서버 연결 전)

@@ -2,6 +2,7 @@
 import { Router, type IRouter } from "express";
 import { successResponse, errorResponse } from "./types.js";
 import { sseEmitter } from "../sse/event-emitter.js";
+import { gateResolver } from "../runtime/gate-resolver.js";
 
 export const gatesRouter: IRouter = Router();
 
@@ -40,6 +41,9 @@ gatesRouter.post("/:gateId/approve", (req, res) => {
   const updatedGate = { ...gate, status: "APPROVED", resolution };
   gateStore.set(gateId, updatedGate);
 
+  // gateResolver에 승인 해결 알림 (파이프라인 Promise 해제)
+  gateResolver.resolveGate(gateId, { action: "APPROVE", scopeOverride: scopeOverride ?? undefined });
+
   sseEmitter.broadcast("GATE_RESOLVED", { gateId, resolution });
 
   res.json(successResponse(updatedGate));
@@ -66,6 +70,9 @@ gatesRouter.post("/:gateId/reject", (req, res) => {
 
   const updatedGate = { ...gate, status: "REJECTED", resolution };
   gateStore.set(gateId, updatedGate);
+
+  // gateResolver에 거부 해결 알림 (파이프라인 Promise 해제)
+  gateResolver.resolveGate(gateId, { action: "REJECT", reason });
 
   sseEmitter.broadcast("GATE_RESOLVED", { gateId, resolution });
 

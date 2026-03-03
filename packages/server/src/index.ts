@@ -10,6 +10,7 @@ import { policiesRouter } from "./routes/policies.js";
 import { eventsRouter } from "./routes/events.js";
 import { emergencyRouter } from "./routes/emergency.js";
 import { sseEmitter } from "./sse/event-emitter.js";
+import { jarvisRuntime } from "./runtime/jarvis-runtime.js";
 
 const PORT = Number(process.env["PORT"] ?? 3001);
 
@@ -50,6 +51,10 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// ─── JarvisRuntime 초기화 ────────────────────────────────────
+console.log("\n📦 JarvisRuntime 초기화 중...");
+jarvisRuntime.initialize();
+
 // ─── 서버 시작 ────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 JARVIS API 서버 시작`);
@@ -58,4 +63,14 @@ app.listen(PORT, () => {
   console.log(`   SSE:    http://localhost:${PORT}/api/events`);
   console.log(`\n   프론트엔드: pnpm --filter @jarvis/web dev`);
   console.log(`   (Vite가 /api 요청을 이 서버로 프록시합니다)\n`);
+});
+
+// 프로세스 종료 시 정리
+process.on("SIGTERM", () => {
+  jarvisRuntime.shutdown();
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  jarvisRuntime.shutdown();
+  process.exit(0);
 });

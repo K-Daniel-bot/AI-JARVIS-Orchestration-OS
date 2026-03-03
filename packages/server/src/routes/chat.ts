@@ -3,10 +3,11 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { successResponse } from "./types.js";
 import { sseEmitter } from "../sse/event-emitter.js";
+import { jarvisRuntime } from "../runtime/jarvis-runtime.js";
 
 export const chatRouter: IRouter = Router();
 
-// 인메모리 메시지 스토어 (Phase 0 스텁 — Phase 1에서 DB로 교체)
+// 인메모리 메시지 스토어 (Phase 1 — DB 교체는 Phase 2)
 const messageStore: Array<{
   messageId: string;
   role: "USER" | "JARVIS" | "SYSTEM";
@@ -26,7 +27,7 @@ chatRouter.get("/", (req, res) => {
   res.json(successResponse(filtered));
 });
 
-// POST /api/chat — 메시지 전송
+// POST /api/chat — 메시지 전송 → 에이전트 파이프라인 시작
 chatRouter.post("/", (req, res) => {
   const { content, trustMode, isVoice } = req.body as {
     content: string;
@@ -39,33 +40,30 @@ chatRouter.post("/", (req, res) => {
     return;
   }
 
+  const sessionId = (req.headers["x-session-id"] as string) ?? `sess_${randomUUID().slice(0, 8)}`;
+
   // 사용자 메시지 저장
   const userMsg = {
     messageId: randomUUID(),
     role: "USER" as const,
     content: content.trim(),
     timestamp: new Date().toISOString(),
-    runId: null,
+    runId: null as string | null,
     contextBadge: trustMode === "observe" ? "OBSERVE_ONLY" : "MAY_TRIGGER_ACTIONS",
     isVoice: isVoice ?? false,
   };
+
+  // JarvisRuntime으로 파이프라인 시작 (비동기 — HTTP 즉시 반환)
+  try {
+    const runId = jarvisRuntime.startRun(content.trim(), sessionId, trustMode);
+    userMsg.runId = runId;
+  } catch (e: unknown) {
+    console.error("[chat] 파이프라인 시작 실패:", e);
+    // 파이프라인 실패해도 메시지는 저장
+  }
+
   messageStore.push(userMsg);
-
-  // SSE로 메시지 브로드캐스트
   sseEmitter.broadcast("CHAT_MESSAGE_ADDED", { message: userMsg });
-
-  // Phase 0: 즉시 스텁 응답 생성 (실제 Claude API 연결은 Phase 1)
-  const jarvisMsg = {
-    messageId: randomUUID(),
-    role: "JARVIS" as const,
-    content: `[Phase 0 스텁] "${content.trim()}" 요청을 받았습니다. 에이전트 파이프라인은 Phase 1에서 연결됩니다.`,
-    timestamp: new Date().toISOString(),
-    runId: null,
-    contextBadge: "COMPLETED",
-    isVoice: false,
-  };
-  messageStore.push(jarvisMsg);
-  sseEmitter.broadcast("CHAT_MESSAGE_ADDED", { message: jarvisMsg });
 
   res.json(successResponse(userMsg));
 });

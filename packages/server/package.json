@@ -13,17 +13,19 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@jarvis/shared": "workspace:*",
+    "@anthropic-ai/sdk": "0.39.0",
+    "@jarvis/agents": "workspace:*",
+    "@jarvis/audit": "workspace:*",
     "@jarvis/core": "workspace:*",
     "@jarvis/policy-engine": "workspace:*",
-    "@jarvis/audit": "workspace:*",
-    "@jarvis/agents": "workspace:*",
+    "@jarvis/shared": "workspace:*",
+    "cors": "2.8.5",
     "express": "4.21.2",
-    "cors": "2.8.5"
+    "xstate": "5.19.2"
   },
   "devDependencies": {
-    "@types/express": "5.0.0",
     "@types/cors": "2.8.17",
+    "@types/express": "5.0.0",
     "@types/node": "20.17.0",
     "typescript": "5.7.3",
     "vitest": "2.1.8"
