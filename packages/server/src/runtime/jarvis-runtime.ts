@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { jarvisMachine } from "@jarvis/core";
 import type { JarvisMachineContext } from "@jarvis/core";
 import type { SpecRef, PlanRef, ChangeSetRef, ReviewRef, TestResultRef } from "@jarvis/core";
-import type { Result, JarvisError, AuditEntry } from "@jarvis/shared";
+import type { Result, JarvisError, AuditEntry, CapabilityToken } from "@jarvis/shared";
 import { createError } from "@jarvis/shared";
 import { evaluate } from "@jarvis/policy-engine";
 import { AuditStore } from "@jarvis/audit";
@@ -468,6 +468,14 @@ class JarvisRuntime {
           runId,
           `[정책 통과] ${policyStatus} (위험도: ${outcomeRiskLevel}, 점수: ${outcomeRiskScore})`,
         );
+      }
+
+      // ─── OS 직접 실행 분기 ─────────────────────────────────
+      // intent가 OS 실행 관련이면 코드 생성 파이프라인 스킵
+      const OS_EXECUTION_INTENTS = ["APP_LAUNCH", "FILE_OPERATION", "PROCESS_MANAGEMENT", "SYSTEM_CONFIG"];
+      if (OS_EXECUTION_INTENTS.includes(specOutput.intent)) {
+        await this.runDirectExecutionPath(runId, specOutput, decision, execCtx, actor);
+        return;
       }
 
       // ─── 3단계: PLANNING ───────────────────────────────────
@@ -1071,6 +1079,179 @@ class JarvisRuntime {
 
       this.broadcastChatMessage(runId, `오류 발생: ${errorMsg}`);
     }
+  }
+
+  // OS 직접 실행 경로 — SPEC → POLICY → (GATE) → EXECUTE → COMPLETED
+  private async runDirectExecutionPath(
+    runId: string,
+    specOutput: { specId: string; interpretation: string; intent: string; targets: readonly string[] },
+    decision: { decisionId: string; outcome: { riskScore: number; riskLevel: string; humanExplanation: string } },
+    execCtx: { runId: string; sessionId: string; userId: string; trustMode: "observe" | "suggest" | "semi-auto" | "full-auto" },
+    actor: AnyActorRef,
+  ): Promise<void> {
+    const outcomeRiskScore = decision.outcome.riskScore;
+    const outcomeRiskLevel = decision.outcome.riskLevel;
+
+    // Gate 승인 — HIGH/CRITICAL 위험도일 때만 대기
+    if (outcomeRiskScore >= 60) {
+      const gateExecId = gateResolver.createGateId();
+      const gateExecData = {
+        gateId: gateExecId,
+        gateLevel: "L1",
+        runId,
+        what: specOutput.interpretation,
+        why: `OS 실행: ${specOutput.intent} — 대상: ${specOutput.targets.join(", ")}`,
+        riskScore: outcomeRiskScore,
+        riskLevel: outcomeRiskLevel,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
+      registerGate(gateExecData);
+
+      sseEmitter.broadcast("NODE_UPDATED", {
+        runId,
+        node: buildTimelineNode("GATE", "WAITING_GATE", "실행 승인 대기", null,
+          `${specOutput.intent} 실행 승인 필요`,
+          { riskScore: outcomeRiskScore, riskLevel: outcomeRiskLevel, gateId: gateExecId },
+        ),
+      });
+      sseEmitter.broadcast("GATE_OPENED", { gate: gateExecData });
+
+      this.broadcastChatMessage(
+        runId,
+        `[승인 필요] ${specOutput.interpretation}\n위험도: ${outcomeRiskLevel} (${outcomeRiskScore}점)\n게이트 UI에서 승인해주세요.`,
+      );
+
+      try {
+        const resolution = await gateResolver.waitForGate(gateExecId);
+        if (resolution.action !== "APPROVE") {
+          actor.send({ type: "REJECTED", reason: resolution.reason ?? "사용자 거부" });
+          this.broadcastChatMessage(runId, `실행 거부됨: ${resolution.reason ?? "사용자가 거부했습니다"}`);
+          this.activeRun = null;
+          return;
+        }
+      } catch {
+        actor.send({ type: "TIMEOUT" });
+        this.broadcastChatMessage(runId, `실행 승인 타임아웃 — 요청이 거부되었습니다.`);
+        this.activeRun = null;
+        return;
+      }
+    }
+
+    // Executor 에이전트 실행
+    if (!this.executorAgent) {
+      actor.send({ type: "ERROR", error: createError("INTERNAL_ERROR", "Executor 에이전트 미초기화") });
+      return;
+    }
+
+    // intent → actionType 매핑
+    const intentActionMap: Record<string, string> = {
+      APP_LAUNCH: "app.launch",
+      FILE_OPERATION: "fs.write",
+      PROCESS_MANAGEMENT: "process.kill",
+      SYSTEM_CONFIG: "exec.run",
+    };
+    const actionType = intentActionMap[specOutput.intent] ?? "exec.run";
+
+    // intent → 실행 파라미터 구성
+    const parameters: Record<string, unknown> = {};
+    const target = specOutput.targets[0] ?? "general";
+
+    if (specOutput.intent === "APP_LAUNCH") {
+      parameters["appName"] = target;
+    } else if (specOutput.intent === "FILE_OPERATION") {
+      parameters["path"] = target;
+      parameters["content"] = "";
+    } else if (specOutput.intent === "PROCESS_MANAGEMENT") {
+      parameters["pid"] = Number(target) || 0;
+    } else {
+      parameters["command"] = target;
+    }
+
+    // Capability Token 임시 발급 — 1회용
+    const capToken: CapabilityToken = {
+      tokenId: `token_direct_${randomUUID().slice(0, 8)}`,
+      issuedAt: new Date().toISOString(),
+      issuedBy: "jarvis-runtime",
+      approvedBy: outcomeRiskScore >= 60 ? "USER" : "POLICY_AUTO",
+      grant: {
+        cap: actionType.includes("app") ? "app.launch"
+          : actionType.includes("fs") ? "fs.write"
+          : actionType.includes("process") ? "process.kill"
+          : "exec.run",
+        scope: specOutput.targets,
+        ttlSeconds: 300,
+        maxUses: 1,
+      },
+      context: {
+        sessionId: execCtx.sessionId,
+        runId,
+        policyDecisionId: decision.decisionId,
+        trustMode: execCtx.trustMode,
+      },
+      status: "ACTIVE",
+      consumedAt: null,
+      consumedByAction: null,
+      revokedReason: null,
+    };
+
+    const execStartedAt = new Date().toISOString();
+    sseEmitter.broadcast("NODE_UPDATED", {
+      runId,
+      node: buildTimelineNode("DEPLOY", "RUNNING", "OS 실행", "executor",
+        `${specOutput.intent}: ${target}`,
+        { startedAt: execStartedAt },
+      ),
+    });
+
+    const execResult = await this.executorAgent.execute(
+      {
+        actionType,
+        parameters,
+        capabilityTokenId: capToken.tokenId,
+        context: execCtx,
+      },
+      execCtx,
+      capToken,
+    );
+
+    if (!execResult.ok) {
+      actor.send({ type: "ERROR", error: execResult.error });
+      sseEmitter.broadcast("NODE_UPDATED", {
+        runId,
+        node: buildTimelineNode("DEPLOY", "FAILED", "OS 실행", "executor", execResult.error.message, { startedAt: execStartedAt }),
+      });
+      this.broadcastChatMessage(runId, `실행 실패: ${execResult.error.message}`);
+      this.activeRun = null;
+      return;
+    }
+
+    const execOutput = execResult.value;
+
+    // 실행 성공 결과 브로드캐스트
+    sseEmitter.broadcast("NODE_UPDATED", {
+      runId,
+      node: buildTimelineNode("DEPLOY", "DONE", "OS 실행", "executor",
+        `${execOutput.actionType} — ${execOutput.status} (${execOutput.durationMs}ms)`,
+        { startedAt: execStartedAt, durationMs: execOutput.durationMs },
+      ),
+    });
+
+    // 결과 메시지 구성
+    const outputInfo = execOutput.output ?? {};
+    const resultDetails = specOutput.intent === "APP_LAUNCH"
+      ? `앱 실행 완료: ${String(outputInfo["appName"] ?? target)} (PID: ${String(outputInfo["pid"] ?? "N/A")})`
+      : `실행 완료: ${execOutput.actionType} — ${execOutput.status}`;
+
+    this.broadcastChatMessage(
+      runId,
+      `[OS 실행 완료] ${resultDetails}\n\n` +
+      `SPEC → POLICY → EXECUTE → COMPLETED\n` +
+      `소요: ${execOutput.durationMs}ms`,
+    );
+
+    actor.send({ type: "SUCCESS" });
+    this.activeRun = null;
   }
 
   // JARVIS 채팅 메시지 브로드캐스트 헬퍼

@@ -51,6 +51,25 @@ const PATH_TRAVERSAL_PATTERNS: readonly RegExp[] = [
   /~\//,
 ];
 
+// APP_LAUNCH 허용 앱 allowlist
+const ALLOWED_APPS: readonly string[] = [
+  "notepad.exe",
+  "calc.exe",
+  "explorer.exe",
+  "mspaint.exe",
+  "code.exe",
+  "cmd.exe",
+  "powershell.exe",
+  "msedge.exe",
+  "chrome.exe",
+  "firefox.exe",
+  "notepad",
+  "calc",
+  "explorer",
+  "mspaint",
+  "code",
+];
+
 // EXEC_RUN 허용 명령어 allowlist
 const ALLOWED_COMMANDS: readonly string[] = [
   "pnpm",
@@ -167,6 +186,32 @@ export function validateCommand(command: string): Result<true, JarvisError> {
   return ok(true);
 }
 
+// 앱 이름 allowlist 검사 — APP_LAUNCH 보안 제한
+export function validateAppName(appName: string): Result<true, JarvisError> {
+  if (!appName || appName.trim().length === 0) {
+    return err(
+      createError(ERROR_CODES.VALIDATION_FAILED, "앱 이름이 비어 있습니다", {
+        context: { appName },
+      })
+    );
+  }
+
+  const normalized = appName.trim().toLowerCase();
+  const isAllowed = ALLOWED_APPS.some(
+    (allowed) => normalized === allowed || normalized.endsWith(`/${allowed}`) || normalized.endsWith(`\\${allowed}`)
+  );
+
+  if (!isAllowed) {
+    return err(
+      createError(ERROR_CODES.POLICY_DENIED, `허용되지 않은 앱입니다: ${appName}`, {
+        context: { appName, allowlist: ALLOWED_APPS },
+      })
+    );
+  }
+
+  return ok(true);
+}
+
 // Pre-Hook 검증 실행 — 액션 목록과 토큰을 받아 종합 검증
 export function validatePreExecution(
   actions: readonly ActionRequest[],
@@ -229,6 +274,15 @@ export function validatePreExecution(
       if (typeof commandParam === "string") {
         const cmdResult = validateCommand(commandParam);
         if (!cmdResult.ok) return err(cmdResult.error);
+      }
+    }
+
+    // 앱 실행 allowlist 검증 (APP_LAUNCH)
+    if (action.actionType === "APP_LAUNCH") {
+      const appParam = action.params["appName"];
+      if (typeof appParam === "string") {
+        const appResult = validateAppName(appParam);
+        if (!appResult.ok) return err(appResult.error);
       }
     }
   }

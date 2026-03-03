@@ -122,39 +122,109 @@ export class SpecAgent extends BaseAgent {
     };
   }
 
-  // 입력 키워드 기반 의도 분류 — Phase 0 휴리스틱
+  // 한국어 앱 이름 키워드 — APP_LAUNCH 판별용
+  // 주의: 일반적인 단어("코드" 등)는 오분류를 유발하므로 제외
+  private static readonly APP_NAME_KEYWORDS = [
+    "메모장", "계산기", "탐색기", "그림판", "브라우저", "크롬",
+    "edge", "vscode",
+  ];
+
+  // 입력 키워드 기반 의도 분류 — 한국어 + 영어 휴리스틱
   private inferIntent(input: string): SpecOutput["intent"] {
     const lower = input.toLowerCase();
 
-    if (lower.includes("install") || lower.includes("package") || lower.includes("npm")) {
-      return "PACKAGE_INSTALL";
-    }
-    if (lower.includes("http") || lower.includes("url") || lower.includes("api") || lower.includes("web")) {
-      return "WEB_ACCESS";
-    }
-    if (lower.includes("launch") || lower.includes("open app") || lower.includes("start")) {
+    // 앱 이름이 직접 언급된 경우 → 우선적으로 APP_LAUNCH
+    const hasAppName = SpecAgent.APP_NAME_KEYWORDS.some(k => lower.includes(k));
+    if (hasAppName) {
       return "APP_LAUNCH";
     }
-    if (lower.includes("file") || lower.includes("directory") || lower.includes("folder")) {
+
+    // 패키지 설치 (install, npm 등) — APP_LAUNCH 동사보다 우선
+    if (lower.includes("install") || lower.includes("package") || lower.includes("npm") || lower.includes("설치")) {
+      return "PACKAGE_INSTALL";
+    }
+    // 웹 접근 (url, http 등) — APP_LAUNCH 동사보다 우선
+    if (lower.includes("http") || lower.includes("url") || lower.includes("api") || lower.includes("web") || lower.includes("접속")) {
+      return "WEB_ACCESS";
+    }
+
+    // 앱 실행 — 앱 이름 없이 실행 동사만 있는 경우 (launch, open app, start)
+    if (
+      lower.includes("launch") || lower.includes("open app") || lower.includes("start")
+    ) {
+      return "APP_LAUNCH";
+    }
+    // 한국어 실행 동사("열어", "실행", "켜") — 다른 특수 intent가 없을 때만 APP_LAUNCH
+    if (
+      lower.includes("열어") || lower.includes("실행") || lower.includes("켜")
+    ) {
+      return "APP_LAUNCH";
+    }
+    // 파일/폴더 조작 — 한국어 키워드
+    if (
+      lower.includes("파일") || lower.includes("폴더") || lower.includes("디렉토리") ||
+      lower.includes("만들어") || lower.includes("생성") || lower.includes("삭제") ||
+      lower.includes("복사") || lower.includes("이동") ||
+      lower.includes("file") || lower.includes("directory") || lower.includes("folder")
+    ) {
       return "FILE_OPERATION";
     }
-    if (lower.includes("config") || lower.includes("setting") || lower.includes("environment")) {
-      return "SYSTEM_CONFIG";
-    }
-    if (lower.includes("network") || lower.includes("request") || lower.includes("fetch")) {
-      return "NETWORK_REQUEST";
-    }
-    if (lower.includes("process") || lower.includes("kill") || lower.includes("pid")) {
+    // 프로세스 관리
+    if (
+      lower.includes("프로세스") || lower.includes("종료") || lower.includes("닫아") ||
+      lower.includes("process") || lower.includes("kill") || lower.includes("pid")
+    ) {
       return "PROCESS_MANAGEMENT";
     }
-    if (lower.includes("mobile") || lower.includes("phone") || lower.includes("sms")) {
+    // 시스템 설정
+    if (
+      lower.includes("설정") || lower.includes("환경") || lower.includes("시스템") ||
+      lower.includes("config") || lower.includes("setting") || lower.includes("environment")
+    ) {
+      return "SYSTEM_CONFIG";
+    }
+    if (lower.includes("network") || lower.includes("request") || lower.includes("fetch") || lower.includes("네트워크")) {
+      return "NETWORK_REQUEST";
+    }
+    if (lower.includes("mobile") || lower.includes("phone") || lower.includes("sms") || lower.includes("모바일")) {
       return "MOBILE_ACTION";
     }
     return "CODE_IMPLEMENTATION";
   }
 
-  // 입력에서 조작 대상 추출 — Phase 0 단순 파싱
+  // 한국어 앱 이름 → 실행파일 매핑
+  private static readonly APP_NAME_MAP: Readonly<Record<string, string>> = {
+    "메모장": "notepad.exe",
+    "notepad": "notepad.exe",
+    "계산기": "calc.exe",
+    "calculator": "calc.exe",
+    "탐색기": "explorer.exe",
+    "explorer": "explorer.exe",
+    "그림판": "mspaint.exe",
+    "paint": "mspaint.exe",
+    "브라우저": "msedge.exe",
+    "크롬": "chrome.exe",
+    "chrome": "chrome.exe",
+    "edge": "msedge.exe",
+    "코드": "code.exe",
+    "vscode": "code.exe",
+    "터미널": "cmd.exe",
+    "cmd": "cmd.exe",
+    "파워셸": "powershell.exe",
+    "powershell": "powershell.exe",
+  };
+
+  // 입력에서 조작 대상 추출 — 한국어 앱 이름 우선, 경로 패턴 폴백
   private extractTargets(input: string): string[] {
+    const lower = input.toLowerCase();
+
+    // 한국어 앱 이름 → 실행파일 매핑 우선
+    for (const [keyword, exe] of Object.entries(SpecAgent.APP_NAME_MAP)) {
+      if (lower.includes(keyword)) {
+        return [exe];
+      }
+    }
+
     // 파일 경로 패턴 추출
     const pathPattern = /(?:\/[\w./\-]+|[\w]+\.(?:ts|js|json|md|tsx|jsx|py|go))/g;
     const matches = input.match(pathPattern);

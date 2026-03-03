@@ -2,6 +2,7 @@
 // 주의: 이 에이전트만 OS 조작 권한을 가짐 (Single Execution Path 원칙)
 import type { Result, JarvisError, CapabilityToken } from "@jarvis/shared";
 import { ok, err, createError, generateActionId } from "@jarvis/shared";
+import { executeAction, createOsAbstraction, type ActionRequest } from "@jarvis/executor";
 import { BaseAgent } from "../base-agent.js";
 import type { AgentExecutionContext } from "../types/agent-config.js";
 import {
@@ -139,13 +140,13 @@ export class ExecutorAgent extends BaseAgent {
         // Claude 실패 시 직접 실행으로 폴백
     // eslint-disable-next-line no-console
         console.warn(`[ExecutorAgent] Claude API 실패, 직접 실행 폴백: ${claudeResult.error.message}`);
-        output = this.buildDirectOutput(actionId, actionType, parameters, startMs);
+        output = await this.executeDirectAction(actionId, actionType, parameters, startMs, capabilityToken);
       } else {
         output = claudeResult.value;
       }
     } else {
       // Claude 미주입 — 직접 실행
-      output = this.buildDirectOutput(actionId, actionType, parameters, startMs);
+      output = await this.executeDirectAction(actionId, actionType, parameters, startMs, capabilityToken);
     }
 
     // 5. 감사 로그 기록
@@ -170,24 +171,67 @@ export class ExecutorAgent extends BaseAgent {
     return ok(output);
   }
 
-  // 직접 실행 결과 빌드 — executor 패키지 없이 에이전트 레벨에서 결과 생성
-  private buildDirectOutput(
+  // 실제 OS 명령 실행 — ActionExecutor를 통한 안전한 실행
+  private async executeDirectAction(
     actionId: string,
     actionType: string,
     parameters: Record<string, unknown>,
     startMs: number,
-  ): ExecutorOutput {
+    capabilityToken?: CapabilityToken,
+  ): Promise<ExecutorOutput> {
     const mappedType = ACTION_TYPE_MAP[actionType];
+    if (!mappedType) {
+      return {
+        actionId,
+        actionType,
+        status: "FAILED",
+        output: { mappedActionType: "UNKNOWN", parameters },
+        durationMs: Date.now() - startMs,
+        error: `알 수 없는 액션 유형: ${actionType}`,
+      };
+    }
+
+    // ActionRequest 구조로 변환
+    const actionRequest: ActionRequest = {
+      actionId,
+      actionType: mappedType as any,
+      params: parameters,
+      requiresCapabilities: [],
+      riskTags: [],
+      preconditions: [],
+      postconditions: [],
+      evidence: {
+        captureScreenshot: false,
+        captureStdout: actionType === "exec.run",
+      },
+    };
+
+    // ActionExecutor 호출 — Pre-Hook 검증 + 실제 OS 실행
+    const os = createOsAbstraction();
+    const execResult = await executeAction(actionRequest, os, capabilityToken ?? undefined);
+
+    if (!execResult.ok) {
+      return {
+        actionId,
+        actionType,
+        status: "FAILED",
+        output: { mappedActionType: mappedType, parameters },
+        durationMs: Date.now() - startMs,
+        error: execResult.error.message,
+      };
+    }
+
+    const actionResult = execResult.value;
     return {
       actionId,
       actionType,
-      status: mappedType ? "SUCCESS" : "FAILED",
+      status: actionResult.status as "SUCCESS" | "FAILED",
       output: {
-        mappedActionType: mappedType ?? "UNKNOWN",
-        parameters,
+        mappedActionType: mappedType,
+        ...actionResult.output,
       },
-      durationMs: Date.now() - startMs,
-      error: mappedType ? undefined : `알 수 없는 액션 유형: ${actionType}`,
+      durationMs: actionResult.durationMs,
+      error: actionResult.error ? actionResult.error.message : undefined,
     };
   }
 }

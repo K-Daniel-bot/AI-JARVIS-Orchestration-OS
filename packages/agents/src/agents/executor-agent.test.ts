@@ -16,6 +16,33 @@ vi.mock("../claude-client.js", () => ({
   parseJsonResponse: vi.fn(),
 }));
 
+// ActionExecutor 모킹 — 실제 OS 실행 방지
+vi.mock("@jarvis/executor", () => ({
+  executeAction: vi.fn(async () => ({
+    ok: true,
+    value: {
+      actionId: "test_action",
+      actionType: "APP_LAUNCH",
+      status: "SUCCESS",
+      durationMs: 100,
+      output: { appName: "notepad.exe", pid: 9999 },
+      error: null,
+      evidence: { screenshotRef: null, stdoutRef: null },
+    },
+  })),
+  createOsAbstraction: vi.fn(() => ({
+    platform: "windows",
+    readFile: vi.fn(() => ({ ok: true, value: { path: "/test", content: "test", sizeBytes: 4 } })),
+    writeFile: vi.fn(() => ({ ok: true, value: { path: "/test", bytesWritten: 4 } })),
+    deleteFile: vi.fn(() => ({ ok: true, value: { path: "/test", deleted: true } })),
+    listDirectory: vi.fn(() => ({ ok: true, value: { path: "/test", entries: [] } })),
+    moveFile: vi.fn(() => ({ ok: true, value: { sourcePath: "/a", destPath: "/b" } })),
+    executeCommand: vi.fn(() => ({ ok: true, value: { command: "test", exitCode: 0, stdout: "", stderr: "", durationMs: 10 } })),
+    launchApp: vi.fn(() => ({ ok: true, value: { appName: "notepad.exe", pid: 9999, launched: true } })),
+    killProcess: vi.fn(() => ({ ok: true, value: { pid: 1234, signal: "SIGTERM", success: true } })),
+  })),
+}));
+
 import { callClaude, parseJsonResponse } from "../claude-client.js";
 
 // ─── 테스트 픽스처 ────────────────────────────────────────────────────────────
