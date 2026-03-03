@@ -120,16 +120,17 @@ const AuditTab: React.FC<{ entries: readonly AuditEntryDto[] }> = ({ entries }) 
             style={{ marginBottom: "4px", borderBottom: "1px solid #21262d", paddingBottom: "4px" }}
           >
             <span style={{ color: "#6b7280" }}>[{entry.timestamp.slice(11, 23)}]</span>
-            {" "}
             <span style={{ color: levelColor[entry.logLevel] ?? "#c9d1d9" }}>
-              [{entry.logLevel}]
+              {" "}[{entry.logLevel}]
             </span>
-            {" "}
-            <span style={{ color: "#58a6ff" }}>{entry.agentType}</span>
-            {" "}
-            <span>{entry.summary}</span>
+            <span style={{ color: "#58a6ff" }}>
+              {" "}{entry.agentType}
+            </span>
+            <span>
+              {" "}{entry.summary}
+            </span>
             {entry.isRedacted && (
-              <span style={{ marginLeft: "6px", color: "#f59e0b", fontSize: "10px" }}>[REDACTED]</span>
+              <span style={{ marginLeft: "6px", color: "#f59e0b", fontSize: "10px" }}> [REDACTED]</span>
             )}
           </div>
         ))}
