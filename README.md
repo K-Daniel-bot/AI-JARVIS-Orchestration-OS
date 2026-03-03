@@ -237,13 +237,12 @@ cd AI-JARVIS-Orchestration-OS
 pnpm install
 
 # 3. 환경변수 설정
-cp .env.example .env
-# .env 파일에 ANTHROPIC_API_KEY=sk-ant-... 입력
+# .env 파일이 이미 준비되어 있습니다
+# Anthropic API 키를 입력하세요 (https://console.anthropic.com)
+cat .env
+# ANTHROPIC_API_KEY=sk-ant-v2-... 로 수정 후 저장
 
-# 4. 전체 빌드
-pnpm build
-
-# 5. 개발 서버 시작 (API 서버 + 프론트엔드 동시 시작)
+# 4. 개발 서버 시작 (API 서버 + 프론트엔드 동시 시작)
 pnpm start
 ```
 
